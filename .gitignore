@@ -19,6 +19,9 @@ dist/
 venv/
 env/
 
+# ---- Live call status ----
+backend/runtime/
+
 # ---- Node / frontend (Phase 1 UI later) ----
 node_modules/
 .next/

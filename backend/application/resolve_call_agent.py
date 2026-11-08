@@ -2,9 +2,15 @@
 
 from pathlib import Path
 
-from infrastructure.agent_files import UnknownAgent, agent_path
+from infrastructure.agent_files import AGENTS_DIR, UnknownAgent, agent_path
 
 EXAMPLE_FLOW = Path(__file__).resolve().parent.parent / "example_flow.json"
+
+
+def call_agent_id(path: Path) -> str | None:
+    if path.resolve().parent == AGENTS_DIR.resolve():
+        return path.stem
+    return None
 
 
 def resolve_call_agent(body) -> Path:

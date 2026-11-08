@@ -16,6 +16,8 @@ from typing import Union
 from loguru import logger
 from pipecat_flows import FlowManager, FlowsFunctionSchema, NodeConfig
 
+from application.track_active_node import track_active_node
+
 from .schema import AgentConfig, Edge, Node
 
 
@@ -80,6 +82,7 @@ class AgentBuilder:
             # Persist what the caller gave us so later nodes can use it.
             flow_manager.state.update(args)
             logger.info(f"[{edge.function}] -> {edge.target} | collected: {args}")
+            track_active_node(edge.target)
             next_node = self._make_node(self._nodes_by_name[edge.target])
             return {"status": "success", **args}, next_node
 

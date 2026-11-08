@@ -12,6 +12,7 @@ type NodeMove = {
 type AgentCanvasProps = {
     document: AgentDocument;
     selectedNodeName: string | null;
+    activeNodeName: string | null;
     onSelectNode: (nodeName: string | null) => void;
     onMoveNodes: (moves: NodeMove[]) => void;
 };
@@ -19,6 +20,7 @@ type AgentCanvasProps = {
 export function AgentCanvas({
     document,
     selectedNodeName,
+    activeNodeName,
     onSelectNode,
     onMoveNodes,
 }: AgentCanvasProps) {
@@ -26,6 +28,7 @@ export function AgentCanvas({
     const nodes = graph.nodes.map((node) => ({
         ...node,
         selected: node.id === selectedNodeName,
+        className: node.id === activeNodeName ? "active-call-node" : undefined,
     }));
     return (
         <div className="agent-canvas">

@@ -1,5 +1,6 @@
 import { AgentList } from "../agent-list/AgentList";
 import { AgentCanvas } from "../agent-graph/AgentCanvas";
+import { useActiveNode } from "../agent-graph/useActiveNode";
 import { NodeInspector } from "../node-inspector/NodeInspector";
 import { setNodePositions } from "../graph-edits/setNodePositions";
 import { TestCall } from "../test-call/TestCall";
@@ -21,6 +22,7 @@ export function Editor() {
         selectNode,
         editDocument,
     } = useOpenAgent();
+    const activeNodeName = useActiveNode(agentId);
 
     return (
         <div className="editor">
@@ -57,6 +59,7 @@ export function Editor() {
                             key={agentId ?? document.name}
                             document={document}
                             selectedNodeName={selectedNodeName}
+                            activeNodeName={activeNodeName}
                             onSelectNode={selectNode}
                             onMoveNodes={(moves) => editDocument(setNodePositions(document, moves))}
                         />
