@@ -18,6 +18,18 @@ export async function getAgent(agentId: string): Promise<AgentDocument> {
     return response.json() as Promise<AgentDocument>;
 }
 
+export async function createAgent(name?: string): Promise<{ id: string; agent: AgentDocument }> {
+    const response = await fetch(`${API_URL}/agents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(name ? { name } : {}),
+    });
+    if (!response.ok) {
+        throw new Error("Could not create the agent.");
+    }
+    return response.json() as Promise<{ id: string; agent: AgentDocument }>;
+}
+
 export async function saveAgent(agentId: string, document: AgentDocument): Promise<AgentDocument> {
     const response = await fetch(`${API_URL}/agents/${encodeURIComponent(agentId)}`, {
         method: "PUT",

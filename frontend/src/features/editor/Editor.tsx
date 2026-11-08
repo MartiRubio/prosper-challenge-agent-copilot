@@ -15,6 +15,7 @@ export function Editor() {
         dirty,
         error,
         openAgent,
+        createNewAgent,
         save,
         selectNode,
         editDocument,
@@ -22,7 +23,13 @@ export function Editor() {
 
     return (
         <div className="editor">
-            <AgentList agents={agents} selectedId={agentId} loading={loading} onSelect={openAgent} />
+            <AgentList
+                agents={agents}
+                selectedId={agentId}
+                loading={loading}
+                onSelect={openAgent}
+                onCreate={() => void createNewAgent()}
+            />
             <main className="editor-stage">
                 {loading && <p className="muted">Loading agent…</p>}
                 {error && <p className="error">{error}</p>}

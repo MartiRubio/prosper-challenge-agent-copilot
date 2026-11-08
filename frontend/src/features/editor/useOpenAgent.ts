@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { getAgent, listAgents, saveAgent } from "../../api/agents";
+import { createAgent, getAgent, listAgents, saveAgent } from "../../api/agents";
 import type { AgentDocument, AgentSummary } from "./agentDocument";
 
 export function useOpenAgent() {
@@ -32,6 +32,24 @@ export function useOpenAgent() {
     const editDocument = useCallback((next: AgentDocument) => {
         setDocument(next);
         setDirty(true);
+    }, []);
+
+    const createNewAgent = useCallback(async () => {
+        setError(null);
+        try {
+            const created = await createAgent();
+            setAgents((current) =>
+                [...current, { id: created.id, name: created.agent.name }].sort((a, b) =>
+                    a.id.localeCompare(b.id),
+                ),
+            );
+            setAgentId(created.id);
+            setDocument(created.agent);
+            setSelectedNodeName(created.agent.initial_node);
+            setDirty(false);
+        } catch (caught) {
+            setError(caught instanceof Error ? caught.message : "Could not create the agent.");
+        }
     }, []);
 
     const save = useCallback(async () => {
@@ -93,6 +111,7 @@ export function useOpenAgent() {
         dirty,
         error,
         openAgent,
+        createNewAgent,
         save,
         selectNode: setSelectedNodeName,
         editDocument,
