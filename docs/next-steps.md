@@ -1,6 +1,6 @@
 # Next steps
 
-Phase 1 is the editor and the test call. The slices below are named only. Their files and commits get planned when each one starts.
+Phase 1 is in the tree: the graph editor and a test call from that screen. The slices below are named only. Their files and commits get planned when each one starts.
 
 1. **Brief, then graph.** Paste a client's scheduling guidelines. The model returns intents, slots, rules, and questions it will not guess. A person confirms the brief. Then it compiles an agent document.
 2. **Patch from a call.** A mocked transcript becomes an issue pinned to one node, with a quote. The model proposes a minimal patch. The person accepts it. `AgentBuilder` validates before save.

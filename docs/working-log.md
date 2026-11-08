@@ -17,3 +17,11 @@ Phase 2, later, is the part Prosper said they care about. The copilot should not
 We are doing Phase 1 first: the graph editor and a test call from that UI. Commits stay single-purpose so the history is reviewable. Files stay single-concept. The filename is the job. New backend code is application, infrastructure, and HTTP interfaces. The Pipecat schema and `bot.py` stay put.
 
 The review surface is `solution.md`, `docs/decisions/`, `docs/demo-script.md`, this log, and `docs/next-steps.md`.
+
+## 2026-11-08 — Phase 1 is in the tree
+
+The editor lists agents, draws the graph, edits a node's task and edges, saves, and creates a blank agent. Test call uses the Pipecat browser client against `POST /start` with `agent_id`. A live check loaded `prosper-scheduler.json`, greeted from the greeting node, highlighted that node, and cleared the highlight when the call ended. The prebuilt client at `:7860/client` still runs when no id is sent.
+
+Dragging a node writes `layout` on save. We did not drive a drag from the automated browser, so that path is worth a hand check during the demo: move greeting, save, reload.
+
+Next slice is the copilot, still unscoped: brief, then a patch from a mocked call, then a text replay.
