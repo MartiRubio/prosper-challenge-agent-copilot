@@ -17,3 +17,27 @@ export async function getAgent(agentId: string): Promise<AgentDocument> {
     }
     return response.json() as Promise<AgentDocument>;
 }
+
+export async function saveAgent(agentId: string, document: AgentDocument): Promise<AgentDocument> {
+    const response = await fetch(`${API_URL}/agents/${encodeURIComponent(agentId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(document),
+    });
+    if (!response.ok) {
+        throw new Error(await errorDetail(response));
+    }
+    return response.json() as Promise<AgentDocument>;
+}
+
+async function errorDetail(response: Response): Promise<string> {
+    try {
+        const body = (await response.json()) as { detail?: unknown };
+        if (typeof body.detail === "string" && body.detail) {
+            return body.detail;
+        }
+    } catch {
+        // The body was not JSON.
+    }
+    return "Could not save the agent.";
+}

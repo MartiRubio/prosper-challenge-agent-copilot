@@ -106,6 +106,28 @@ h1 {
     background: var(--panel);
 }
 
+.stage-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.save-button {
+    border: 0;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    padding: 8px 14px;
+    cursor: pointer;
+}
+
+.save-button:disabled {
+    background: var(--line);
+    color: var(--muted);
+    cursor: default;
+}
+
 .persona {
     display: -webkit-box;
     max-width: 72ch;

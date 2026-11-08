@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { getAgent, listAgents } from "../../api/agents";
+import { getAgent, listAgents, saveAgent } from "../../api/agents";
 import type { AgentDocument, AgentSummary } from "./agentDocument";
 
 export function useOpenAgent() {
@@ -9,6 +9,8 @@ export function useOpenAgent() {
     const [document, setDocument] = useState<AgentDocument | null>(null);
     const [selectedNodeName, setSelectedNodeName] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [dirty, setDirty] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const openAgent = useCallback(async (id: string) => {
@@ -18,16 +20,35 @@ export function useOpenAgent() {
             const next = await getAgent(id);
             setDocument(next);
             setSelectedNodeName(next.initial_node);
+            setDirty(false);
         } catch (caught) {
             setDocument(null);
             setSelectedNodeName(null);
+            setDirty(false);
             setError(caught instanceof Error ? caught.message : "Could not load the agent.");
         }
     }, []);
 
     const editDocument = useCallback((next: AgentDocument) => {
         setDocument(next);
+        setDirty(true);
     }, []);
+
+    const save = useCallback(async () => {
+        if (!agentId || !document) {
+            return;
+        }
+        setSaving(true);
+        setError(null);
+        try {
+            setDocument(await saveAgent(agentId, document));
+            setDirty(false);
+        } catch (caught) {
+            setError(caught instanceof Error ? caught.message : "Could not save the agent.");
+        } finally {
+            setSaving(false);
+        }
+    }, [agentId, document]);
 
     useEffect(() => {
         let cancelled = false;
@@ -68,8 +89,11 @@ export function useOpenAgent() {
         document,
         selectedNodeName,
         loading,
+        saving,
+        dirty,
         error,
         openAgent,
+        save,
         selectNode: setSelectedNodeName,
         editDocument,
     };
