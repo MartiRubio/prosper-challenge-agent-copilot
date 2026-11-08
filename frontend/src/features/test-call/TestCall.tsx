@@ -1,68 +1,208 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { ClipboardList, Phone, PhoneOff, Play, Waypoints } from "lucide-react";
 
 import type { TransportState } from "@pipecat-ai/client-js";
 
+import type { AgentDocument } from "../editor/agentDocument";
+import { filledTestData, type TestField } from "./testFields";
+import { FieldInputs } from "./FieldInputs";
 import { startWebRtcCall } from "./startWebRtcCall";
 
 type TestCallProps = {
     agentId: string | null;
-    disabled: boolean;
+    agent: AgentDocument | null;
+    fields: TestField[];
+    values: Record<string, string>;
+    onValue: (name: string, value: string) => void;
+    onOpenTestData: () => void;
+    ready: boolean;
+    picking: boolean;
+    onPicking: (picking: boolean) => void;
+    startFromNode: RefObject<(nodeName: string) => void>;
 };
 
-export function TestCall({ agentId, disabled }: TestCallProps) {
+export function TestCall({
+    agentId,
+    agent,
+    fields,
+    values,
+    onValue,
+    onOpenTestData,
+    ready,
+    picking,
+    onPicking,
+    startFromNode,
+}: TestCallProps) {
     const [state, setState] = useState<TransportState | "idle">("idle");
     const [error, setError] = useState<string | null>(null);
+    const [playbackBlocked, setPlaybackBlocked] = useState(false);
+    const [armed, setArmed] = useState(false);
+    const [showFields, setShowFields] = useState(false);
     const disconnectRef = useRef<(() => Promise<void>) | null>(null);
+    const starting = useRef(false);
+    const live = state === "connected" || state === "ready" || state === "connecting" || state === "authenticating";
 
     useEffect(() => {
         setState("idle");
         setError(null);
+        setPlaybackBlocked(false);
+        setArmed(false);
+        setShowFields(false);
+        onPicking(false);
         return () => {
             void disconnectRef.current?.();
             disconnectRef.current = null;
         };
-    }, [agentId]);
+    }, [agentId, onPicking]);
 
-    async function toggle() {
-        if (disconnectRef.current) {
-            await disconnectRef.current();
-            disconnectRef.current = null;
-            setState("idle");
-            setError(null);
+    useEffect(() => {
+        if (!live) {
             return;
         }
-        if (!agentId || disabled) {
+        setArmed(false);
+        setShowFields(false);
+        onPicking(false);
+    }, [live, onPicking]);
+
+    useEffect(() => {
+        if (!showFields) {
             return;
         }
+        onPicking(ready);
+    }, [showFields, ready, onPicking]);
+
+    useEffect(() => {
+        startFromNode.current = (nodeName: string) => {
+            void begin(nodeName);
+        };
+    });
+
+    useEffect(() => {
+        if (!armed) {
+            return;
+        }
+        function onKey(event: KeyboardEvent) {
+            if (event.key === "Escape") {
+                setArmed(false);
+                setShowFields(false);
+                onPicking(false);
+            }
+        }
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [armed, onPicking]);
+
+    async function endCall() {
+        await disconnectRef.current?.();
+        disconnectRef.current = null;
+        setState("idle");
         setError(null);
+        setPlaybackBlocked(false);
+    }
+
+    async function begin(nodeName: string | null) {
+        if (starting.current || disconnectRef.current || !agentId || !agent) {
+            return;
+        }
+        starting.current = true;
+        setError(null);
+        setPlaybackBlocked(false);
+        setShowFields(false);
+        onPicking(false);
         setState("connecting");
         try {
-            disconnectRef.current = await startWebRtcCall(agentId, setState);
+            disconnectRef.current = await startWebRtcCall(
+                agentId,
+                agent,
+                setState,
+                () => setPlaybackBlocked(true),
+                nodeName ? { node: nodeName, data: filledTestData(fields, values) } : undefined,
+            );
         } catch (caught) {
             disconnectRef.current = null;
             setState("idle");
+            setArmed(true);
             setError(caught instanceof Error ? caught.message : "Could not start the call.");
+        } finally {
+            starting.current = false;
         }
     }
 
-    const live = state === "connected" || state === "ready" || state === "connecting" || state === "authenticating";
+    function onMain() {
+        if (disconnectRef.current || live) {
+            void endCall();
+            return;
+        }
+        if (!armed) {
+            setArmed(true);
+            return;
+        }
+        void begin(null);
+    }
+
+    function onStartFromNode() {
+        if (showFields || picking) {
+            setShowFields(false);
+            onPicking(false);
+            return;
+        }
+        setShowFields(true);
+        onPicking(ready);
+    }
+
+    const showChoices = armed && !live;
+
+    const status = callStatus(state, error, playbackBlocked);
 
     return (
-        <div className="test-call">
-            <button type="button" className="call-button" onClick={() => void toggle()} disabled={!agentId || (disabled && !live)}>
-                {live ? "End call" : "Test call"}
+        <div className="call-anchor">
+            {showFields && !live && (
+                <div className="start-strip">
+                    <p>{ready ? "Click a step." : "Fill these, then click a step."}</p>
+                    {fields.length > 0 && <FieldInputs fields={fields} values={values} onChange={onValue} />}
+                </div>
+            )}
+            <div className="call-left">
+                <button type="button" className="pill" onClick={onOpenTestData}>
+                    <ClipboardList className="nav-icon icon-data" aria-hidden="true" />
+                    Test data
+                </button>
+                {showChoices && (
+                    <button
+                        type="button"
+                        className="call-button call-side"
+                        aria-pressed={picking}
+                        onClick={onStartFromNode}
+                    >
+                        <Waypoints className="nav-icon icon-call" aria-hidden="true" />
+                        Start from node
+                    </button>
+                )}
+            </div>
+            <button
+                type="button"
+                className="call-button"
+                onClick={onMain}
+                disabled={!agentId || !agent}
+            >
+                {live ? <PhoneOff className="nav-icon" aria-hidden="true" /> : showChoices ? <Play className="nav-icon icon-call" aria-hidden="true" /> : <Phone className="nav-icon icon-call" aria-hidden="true" />}
+                {live ? "End call" : showChoices ? "Start" : "Test call"}
             </button>
-            <p className={error ? "error" : "muted"}>{callStatus(state, error, disabled)}</p>
+            {status && <p className={error ? "call-status error" : "call-status"}>{status}</p>}
         </div>
     );
 }
 
-function callStatus(state: TransportState | "idle", error: string | null, disabled: boolean): string {
+function callStatus(
+    state: TransportState | "idle",
+    error: string | null,
+    playbackBlocked: boolean,
+): string {
     if (error) {
         return error;
     }
-    if (disabled && state === "idle") {
-        return "Save to test these edits.";
+    if (playbackBlocked) {
+        return "The browser blocked the agent's voice. Unmute the tab and call again.";
     }
     if (state === "ready" || state === "connected") {
         return "On the call.";
@@ -70,5 +210,5 @@ function callStatus(state: TransportState | "idle", error: string | null, disabl
     if (state === "connecting" || state === "authenticating" || state === "initialized") {
         return "Connecting…";
     }
-    return "Uses the saved agent.";
+    return "";
 }

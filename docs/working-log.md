@@ -22,6 +22,42 @@ The review surface is `solution.md`, `docs/decisions/`, `docs/demo-script.md`, t
 
 The editor lists agents, draws the graph, edits a node's task and edges, saves, and creates a blank agent. Test call uses the Pipecat browser client against `POST /start` with `agent_id`. A live check loaded `prosper-scheduler.json`, greeted from the greeting node, highlighted that node, and cleared the highlight when the call ended. The prebuilt client at `:7860/client` still runs when no id is sent.
 
-Dragging a node writes `layout` on save. We did not drive a drag from the automated browser, so that path is worth a hand check during the demo: move greeting, save, reload.
-
 Next slice is the copilot, still unscoped: brief, then a patch from a mocked call, then a text replay.
+
+## 2026-11-08 — Editor pass after using it
+
+The test call was silent in the editor. The runner was already synthesizing speech and sending it on the WebRTC track. Chrome plays that remote track through an audio element; wiring it only into an AudioContext stays silent. The page now starts an audio element on the click and plays the bot track there.
+
+Dragging a node no longer marks the agent dirty and no longer writes `layout`. Auto-arrange places Start, the steps, and End from the edges.
+
+The side panel is the step's name and spoken task. Edges are drawn on the canvas and removed there. Start and End are fixed markers with no script. Start's edge is `initial_node`. An edge into End sets `end` on that step, which the builder already compiles as the end of the call.
+
+## 2026-11-08 — Editing lives on the graph
+
+Dragging flickered because every pixel wrote React state and rebuilt the nodes, so React Flow restarted the gesture. Positions now stay in the canvas until the graph structure changes. The active-node poll also stopped re-rendering when the node had not changed.
+
+The right-hand inspector is gone. A step's name and spoken task sit on the node. An edge's function name, and when it is selected the description of when to call it, sit on the line. Remove, under Auto-arrange, deletes the selection. The agent name is edited in the list. Prompt opens the persona as raw text or rendered markdown, and the raw view can color tiktoken's tokens. That toggle starts off.
+
+## 2026-11-08 — The call reports its own step
+
+The editor was asking `GET /active-node/{id}` twice a second whether or not a call was up. The voice runner now pushes the node name on the WebRTC data channel the call already uses. The highlight follows that message. Nothing polls.
+
+An edge's label is a dropdown of the functions already defined on the agent, plus `no_function` for a plain continuation. Taking the edge is the function call, so the canvas does not ask for a separate "when to call it" sentence. A plain edge still carries a short description in the file, because the model takes the edge by calling that tool.
+
+Test data is the fields those functions collect. Once they are filled, clicking a step during a call moves the live conversation there and puts that data in front of the model.
+
+## 2026-11-08 — Functions are shared
+
+Functions were whatever an edge already used, so a new agent had no way to add one. They now live in `backend/functions.json`. Agents and Functions are two menus in the left bar. Every agent picks from that list. A function's fields are the test data. The token colors draw inside the prompt editor. An agent can be deleted from the list.
+
+## 2026-11-08 — The graph reads left to right
+
+A step shows its name. Double-click opens the spoken task in the same raw and markdown editor as the prompt, tokens included, and the step can be renamed there. Auto-arrange places Start on the left and End on the right.
+
+## 2026-11-08 — Start from a step
+
+A click during a live call does not move the conversation. Test call first becomes Start, and Start from node slides out to its left. That button opens the test fields in place. When they are filled, the steps pulse, and clicking one starts the call there. The runner opens on that step with the field values already in front of the model.
+
+## 2026-11-08 — The call uses the screen
+
+A test call was reading the saved file, so unsaved edits could not be heard, and the button had to be saved first. The editor now sends the graph on screen with the start request. Save still writes the file. Test data sits next to Test call, and that button stays in place when it becomes Start. Auto-arrange wraps the row so the step names stay large. The next row runs back the other way, so the arrow into that row stays as short as the others. The controls use Lucide icons, colored by what they open.

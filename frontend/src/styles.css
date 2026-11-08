@@ -9,7 +9,8 @@
     --accent-soft: #e6f3ee;
     --danger: #8d2d2d;
     font-family: "Avenir Next", "Segoe UI", sans-serif;
-    line-height: 1.45;
+    font-size: 14px;
+    line-height: 1.4;
 }
 
 * {
@@ -32,129 +33,336 @@ select {
 
 h1,
 h2,
+h3,
 p {
     margin: 0;
 }
 
-h1 {
-    font-size: 1.6rem;
-    letter-spacing: -0.02em;
-}
-
 .editor {
     display: grid;
-    grid-template-columns: 220px minmax(0, 1fr) 320px;
+    grid-template-columns: 220px minmax(0, 1fr);
     min-height: 100vh;
 }
 
 .agent-list {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
     background: var(--panel);
     border-right: 1px solid var(--line);
-    padding: 22px 14px;
+    padding: 14px 10px;
 }
 
-.eyebrow {
-    margin: 0 10px 12px;
-    font-size: 0.75rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+.menu-switch {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.menu-switch .pill {
+    flex: 1;
+    text-align: center;
+}
+
+.nav-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.nav-row .agent-pill,
+.nav-row .agent-name {
+    flex: 1;
+    min-width: 0;
+}
+
+.icon-button {
+    border: 0;
+    background: transparent;
+    color: var(--danger);
+    cursor: pointer;
+    padding: 0 2px;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.agent-view.is-hidden {
+    display: none;
+}
+
+.function-stage {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.function-label,
+.function-field label {
+    display: grid;
+    gap: 4px;
     color: var(--muted);
+    font-size: 0.72rem;
+}
+
+.function-label input,
+.function-label textarea,
+.function-field input {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 6px 8px;
+    background: #fff;
+}
+
+.function-fields {
+    display: grid;
+    gap: 10px;
+}
+
+.function-field {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.function-field .check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: none;
+    letter-spacing: 0;
 }
 
 .agent-list ul {
     list-style: none;
     margin: 0;
     padding: 0;
+    display: grid;
+    gap: 6px;
 }
 
-.agent-list .inspector-row .eyebrow {
+.eyebrow {
     margin: 0;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
 }
 
-.agent-list button {
-    width: 100%;
-    text-align: left;
-    border: 0;
-    background: transparent;
-    border-radius: 8px;
-    padding: 8px 10px;
+.inspector-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.pill,
+.pill-input,
+.agent-pill {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    padding: 4px 10px;
+    font-size: 0.75rem;
     cursor: pointer;
 }
 
-.agent-list .inspector-row button {
-    width: auto;
-    border: 1px solid var(--line);
-    background: #fff;
-    padding: 4px 10px;
-    text-align: center;
+.pill,
+.call-button,
+.save-button,
+.icon-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
+.nav-icon {
+    width: 15px;
+    height: 15px;
+    flex: none;
+}
+
+.icon-agents { color: #2f5f8a; }
+.icon-functions { color: #0f6e56; }
+.icon-prompt { color: #9a6b2f; }
+.icon-data { color: #6b4c9a; }
+.icon-call { color: #0f6e56; }
+.icon-arrange { color: #2f5f8a; }
+.icon-add { color: #0f6e56; }
+
+.pill-input {
+    cursor: text;
+}
+
+.agent-pill,
+.agent-name {
+    width: 100%;
+    text-align: left;
+}
+
+.pill[aria-pressed="true"],
 .agent-list button[aria-current="true"] {
     background: var(--accent-soft);
     color: var(--accent);
+    border-color: transparent;
+}
+
+.pill:disabled,
+.save-button:disabled {
+    background: var(--line);
+    color: var(--muted);
+    cursor: default;
+}
+
+.pill.danger {
+    color: var(--danger);
 }
 
 .editor-stage {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    padding: 24px 28px 28px;
+    padding: 12px 14px 14px;
 }
 
 .agent-view {
     display: flex;
     flex-direction: column;
     flex: 1;
-    gap: 16px;
+    gap: 10px;
     min-height: 0;
 }
 
-.react-flow__node.active-call-node {
-    outline: 3px solid var(--accent);
-    outline-offset: 2px;
-    border-radius: 8px;
-}
-
-.agent-canvas {
-    flex: 1;
-    min-height: 480px;
-    overflow: hidden;
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    background: var(--panel);
-}
-
-.stage-heading {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-}
-
-.stage-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.test-call {
+.stage-heading,
+.stage-actions,
+.pill-row,
+.prompt-toolbar {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.test-call p {
-    max-width: 18ch;
-    font-size: 0.85rem;
+.stage-heading {
+    position: relative;
+    z-index: 6;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+}
+
+.stage-end {
+    justify-content: flex-end;
+}
+
+.call-anchor {
+    position: relative;
+    display: flex;
+    justify-content: center;
+}
+
+.call-left {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 8px);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: max-content;
+    transform: translateY(-50%);
+}
+
+.call-left .pill,
+.call-left .call-button {
+    white-space: nowrap;
+    flex: none;
+}
+
+.call-status {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 50%;
+    margin: 0;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 0.72rem;
+    color: var(--muted);
+}
+
+.call-side {
+    animation: arrive 180ms ease-out;
+}
+
+.call-button[aria-pressed="true"] {
+    background: var(--accent-soft);
+}
+
+.start-strip {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 6;
+    width: min(560px, calc(100vw - 280px));
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--panel);
+    box-shadow: 0 12px 32px rgba(28, 25, 21, 0.12);
+    transform-origin: top right;
+    animation: unfold 180ms ease-out;
+}
+
+.start-strip p {
+    margin: 0 0 8px;
+    font-size: 0.75rem;
+}
+
+.start-strip .test-fields {
+    grid-template-columns: 1fr 1fr;
+    margin-top: 0;
+}
+
+@keyframes arrive {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes unfold {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes pick-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(15, 110, 86, 0.4); }
+    70% { box-shadow: 0 0 0 8px rgba(15, 110, 86, 0); }
+}
+
+.call-status.error {
+    color: var(--danger);
+}
+
+.call-button,
+.save-button {
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    cursor: pointer;
 }
 
 .call-button {
     border: 1px solid var(--accent);
-    border-radius: 8px;
     background: #fff;
     color: var(--accent);
-    padding: 8px 14px;
-    cursor: pointer;
+    justify-content: center;
+}
+
+.call-anchor > .call-button {
+    min-width: 108px;
 }
 
 .call-button:disabled {
@@ -165,104 +373,236 @@ h1 {
 
 .save-button {
     border: 0;
-    border-radius: 8px;
     background: var(--accent);
     color: #fff;
-    padding: 8px 14px;
-    cursor: pointer;
 }
 
-.save-button:disabled {
-    background: var(--line);
-    color: var(--muted);
-    cursor: default;
-}
-
-.persona {
-    display: -webkit-box;
-    max-width: 72ch;
-    margin-top: 8px;
+.agent-canvas {
+    position: relative;
+    flex: 1;
+    min-height: 480px;
     overflow: hidden;
-    color: var(--muted);
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-}
-
-.inspector {
-    overflow: auto;
-    max-height: 100vh;
-    padding: 22px 16px 32px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
     background: var(--panel);
-    border-left: 1px solid var(--line);
 }
 
-.inspector-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 8px;
-}
-
-.inspector-row .eyebrow {
-    margin: 0;
-}
-
-.field {
+.canvas-tools {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 5;
     display: grid;
     gap: 6px;
-    margin: 12px 0;
-    font-size: 0.78rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--muted);
+    justify-items: end;
 }
 
-.field input,
-.field textarea,
-.field select,
-.collected-field input {
-    width: 100%;
-    padding: 8px 10px;
+.react-flow__node.active-call-node {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 12px;
+}
+
+.step-node {
+    min-width: 148px;
+    max-width: 220px;
+    padding: 14px 18px;
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: 14px;
     background: #fff;
+    font-size: 1.05rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.step-name {
+    display: block;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.agent-canvas.is-picking .step-node {
+    cursor: pointer;
+    animation: pick-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .call-side,
+    .start-strip,
+    .agent-canvas.is-picking .step-node {
+        animation: none;
+    }
+
+    .agent-canvas.is-picking .step-node {
+        outline: 2px solid var(--accent);
+    }
+}
+
+.react-flow__node.selected .step-node {
+    border-color: var(--accent);
+}
+
+.prompt-name {
+    width: 160px;
     text-transform: none;
     letter-spacing: 0;
-    font-size: 0.95rem;
-    color: var(--ink);
+    font-size: 0.8rem;
 }
 
-.edge-card {
-    margin: 0 0 12px;
-    padding: 10px;
+.prompt-raw {
+    width: 100%;
     border: 1px solid var(--line);
+    background: #fff;
+    color: var(--ink);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.78rem;
+}
+
+.prompt-raw {
     border-radius: 10px;
+    padding: 6px 8px;
+    resize: vertical;
 }
 
-.collected-field {
-    display: grid;
-    gap: 6px;
-    margin-bottom: 10px;
+.marker-node {
+    min-width: 148px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: #fffdf8;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-align: center;
+    text-transform: uppercase;
 }
 
-.check {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+.agent-canvas .react-flow__handle {
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+    border: 2px solid #fff;
+}
+
+.edge-function {
+    position: absolute;
+    pointer-events: all;
+}
+
+.edge-function select,
+.test-fields select,
+.test-fields input {
+    width: 100%;
     text-transform: none;
     letter-spacing: 0;
     font-size: 0.9rem;
+    background: #fff;
+}
+
+.test-fields {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.test-fields label {
+    display: grid;
+    gap: 4px;
+    color: var(--muted);
+    font-size: 0.72rem;
+}
+
+.prompt-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    background: rgba(28, 25, 21, 0.35);
+}
+
+.prompt-dialog {
+    width: min(720px, calc(100vw - 32px));
+    max-height: min(80vh, 760px);
+    overflow: auto;
+    padding: 14px;
+    border-radius: 16px;
+    background: var(--panel);
+}
+
+.prompt-toolbar {
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.prompt-raw {
+    min-height: 220px;
+}
+
+.prompt-markdown {
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.prompt-markdown h1,
+.prompt-markdown h2,
+.prompt-markdown h3 {
+    margin: 0.8em 0 0.3em;
+    font-size: 1rem;
+}
+
+.prompt-markdown p,
+.prompt-markdown ul,
+.prompt-markdown ol {
+    margin: 0.4em 0;
+}
+
+.prompt-editor {
+    position: relative;
+    min-height: 280px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+}
+
+.prompt-editor .prompt-raw {
+    display: block;
+    width: 100%;
+    min-height: 280px;
+    margin: 0;
+    padding: 8px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+.prompt-editor .prompt-raw.is-tokenized {
+    color: transparent;
+    caret-color: var(--ink);
+}
+
+.token-layer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.token-view {
+    padding: 8px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 0.9rem;
+    line-height: 1.5;
     color: var(--ink);
 }
 
-.inspector button,
-.edge-card button {
-    border: 1px solid var(--line);
-    background: #fff;
-    border-radius: 8px;
-    padding: 6px 10px;
-    cursor: pointer;
+.token-view span {
+    border-radius: 3px;
 }
 
 .muted {
