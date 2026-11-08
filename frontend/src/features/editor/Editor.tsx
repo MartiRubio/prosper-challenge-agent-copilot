@@ -1,4 +1,5 @@
 import { AgentList } from "../agent-list/AgentList";
+import { AgentCanvas } from "../agent-graph/AgentCanvas";
 import { useOpenAgent } from "./useOpenAgent";
 
 export function Editor() {
@@ -11,15 +12,12 @@ export function Editor() {
                 {loading && <p className="muted">Loading agent…</p>}
                 {error && <p className="error">{error}</p>}
                 {document && (
-                    <section>
-                        <h1>{document.name}</h1>
-                        {document.persona && <p className="persona">{document.persona}</p>}
-                        <h2>Nodes</h2>
-                        <ul className="node-names">
-                            {document.nodes.map((node) => (
-                                <li key={node.name}>{node.name}</li>
-                            ))}
-                        </ul>
+                    <section className="agent-view">
+                        <header>
+                            <h1>{document.name}</h1>
+                            {document.persona && <p className="persona">{document.persona}</p>}
+                        </header>
+                        <AgentCanvas key={agentId ?? document.name} document={document} />
                     </section>
                 )}
             </main>
