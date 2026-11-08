@@ -1,0 +1,123 @@
+:root {
+    color-scheme: light;
+    --bg: #f3f0e8;
+    --panel: #fffdf8;
+    --ink: #1c1915;
+    --muted: #6d665e;
+    --line: #e3dcd2;
+    --accent: #0f6e56;
+    --accent-soft: #e6f3ee;
+    --danger: #8d2d2d;
+    font-family: "Avenir Next", "Segoe UI", sans-serif;
+    line-height: 1.45;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+    color: inherit;
+}
+
+h1,
+h2,
+p {
+    margin: 0;
+}
+
+h1 {
+    font-size: 1.6rem;
+    letter-spacing: -0.02em;
+}
+
+h2 {
+    margin-top: 28px;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.editor {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    min-height: 100vh;
+}
+
+.agent-list {
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    padding: 22px 14px;
+}
+
+.eyebrow {
+    margin: 0 10px 12px;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.agent-list ul,
+.node-names {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.agent-list button {
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+}
+
+.agent-list button[aria-current="true"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.editor-stage {
+    padding: 36px 40px;
+}
+
+.persona {
+    max-width: 62ch;
+    margin-top: 12px;
+    color: var(--muted);
+}
+
+.node-names {
+    margin-top: 12px;
+    display: grid;
+    gap: 8px;
+}
+
+.node-names li {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.error {
+    color: var(--danger);
+}

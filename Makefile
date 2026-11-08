@@ -3,7 +3,7 @@
 
 PROJECT := backend
 
-.PHONY: help install run api clean
+.PHONY: help install run api web clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -17,6 +17,9 @@ run: ## Run the voice agent (then open http://localhost:7860/client)
 
 api: ## Serve the agent API (http://localhost:8000)
 	uv run --directory $(PROJECT) uvicorn interfaces.http.app:app --host 127.0.0.1 --port 8000
+
+web: ## Run the editor (http://localhost:5173)
+	npm --prefix frontend run dev
 
 clean: ## Remove the venv and Python caches
 	rm -rf $(PROJECT)/.venv
