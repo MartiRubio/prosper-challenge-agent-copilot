@@ -1,4 +1,5 @@
 import type { AgentDocument, AgentNode } from "../editor/agentDocument";
+import { isCallMarker } from "../agent-graph/markers";
 
 function cloneDocument(document: AgentDocument): AgentDocument {
     return structuredClone(document);
@@ -39,7 +40,7 @@ export function setTaskContent(
 
 export function renameNode(document: AgentDocument, from: string, to: string): AgentDocument {
     const name = to.trim();
-    if (!name || name === from || document.nodes.some((node) => node.name === name)) {
+    if (!name || name === from || isCallMarker(name) || document.nodes.some((node) => node.name === name)) {
         return document;
     }
     const next = cloneDocument(document);

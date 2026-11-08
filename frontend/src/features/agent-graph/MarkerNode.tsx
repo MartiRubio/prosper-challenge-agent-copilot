@@ -1,0 +1,18 @@
+import { useEffect } from "react";
+import { Handle, Position, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
+
+export function MarkerNode({ id, data, sourcePosition, targetPosition }: NodeProps) {
+    const label = typeof data.label === "string" ? data.label : "";
+    const start = label === "Start";
+    const updateInternals = useUpdateNodeInternals();
+    useEffect(() => {
+        updateInternals(id);
+    }, [id, sourcePosition, targetPosition, updateInternals]);
+    return (
+        <div className="marker-node">
+            {start ? null : <Handle type="target" position={targetPosition ?? Position.Left} />}
+            {label}
+            {start ? <Handle type="source" position={sourcePosition ?? Position.Right} /> : null}
+        </div>
+    );
+}
