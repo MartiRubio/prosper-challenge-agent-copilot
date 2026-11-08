@@ -8,8 +8,8 @@
 #
 #   agent JSON  ->  AgentBuilder  ->  Pipecat Flows graph  ->  FlowManager
 #
-# A session body with agent_id loads backend/agents/<id>.json. With no id, the
-# bot loads example_flow.json (the prebuilt client at :7860/client).
+# The editor sends the graph on screen. A session with only agent_id loads
+# backend/agents/<id>.json. With no id, the bot loads example_flow.json.
 #
 
 import os
@@ -36,7 +36,10 @@ from pipecat.workers.runner import WorkerRunner
 from pipecat_flows import FlowManager
 
 from agent_builder import AgentBuilder
-from application.resolve_call_agent import call_agent_id, resolve_call_agent
+from application.announce_node import bind_node_announcer
+from application.jump_to_node import jump_to_node
+from application.load_call_agent import load_call_agent
+from application.opening_node import opening_node
 from application.track_active_node import bind_call_agent, clear_tracked_node, track_active_node
 
 # Load .env next to this file, so the bot runs the same from the repo root or backend/.
@@ -93,13 +96,20 @@ async def run_bot(
 
     @transport.event_handler("on_client_connected")
     async def on_client_connected(transport, client):
-        logger.info("Client connected — starting flow at initial node")
-        track_active_node(builder.config.initial_node)
-        await flow_manager.initialize(builder.build_initial_node())
+        node_name, node = opening_node(builder, getattr(runner_args, "body", None), flow_manager, context)
+        logger.info(f"Client connected — starting flow at {node_name}")
+        bind_node_announcer(lambda node_name: _send_node(client, node_name))
+        track_active_node(node_name)
+        await flow_manager.initialize(node)
+
+    @transport.event_handler("on_app_message")
+    async def on_app_message(transport, message, sender):
+        await jump_to_node(flow_manager, context, builder, message)
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):
         logger.info("Client disconnected")
+        bind_node_announcer(None)
         clear_tracked_node()
         bind_call_agent(None)
         await worker.cancel()
@@ -109,13 +119,20 @@ async def run_bot(
     await runner.run()
 
 
+def _send_node(client, node_name: str) -> None:
+    client.send_app_message({
+        "label": "rtvi-ai",
+        "type": "server-message",
+        "data": {"node": node_name},
+    })
+
+
 async def bot(runner_args: RunnerArguments):
     """Entry point invoked by the Pipecat dev runner (and Pipecat Cloud)."""
     transport = await create_transport(runner_args, transport_params)
-    flow_path = resolve_call_agent(getattr(runner_args, "body", None))
-    logger.info(f"Loading agent from {flow_path.name}")
-    bind_call_agent(call_agent_id(flow_path))
-    builder = AgentBuilder.from_json(flow_path)
+    agent_id, builder = load_call_agent(getattr(runner_args, "body", None))
+    logger.info(f"Loading agent {agent_id or builder.config.name}")
+    bind_call_agent(agent_id)
     await run_bot(transport, runner_args, builder)
 
 

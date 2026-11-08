@@ -34,6 +34,7 @@ def create_agent(name: str | None = None) -> dict:
                     }
                 ],
                 "edges": [],
+                "end": True,
             }
         ],
     }
