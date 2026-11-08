@@ -45,3 +45,9 @@ def read_document(agent_id: str) -> dict:
     if not path.is_file():
         raise UnknownAgent(agent_id)
     return json.loads(path.read_text())
+
+
+def write_document(agent_id: str, document: dict) -> None:
+    path = agent_path(agent_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(document, indent=2) + "\n")
