@@ -1,0 +1,55 @@
+[
+  {
+    "name": "choose_intent",
+    "description": "Record what the caller wants to do once they say it.",
+    "properties": {
+      "intent": {
+        "type": "string",
+        "description": "What the caller wants to do.",
+        "enum": [
+          "book",
+          "reschedule",
+          "cancel"
+        ]
+      }
+    },
+    "required": [
+      "intent"
+    ]
+  },
+  {
+    "name": "record_details",
+    "description": "Record the caller's name and reason once both are known.",
+    "properties": {
+      "full_name": {
+        "type": "string",
+        "description": "Caller's full name."
+      },
+      "reason": {
+        "type": "string",
+        "description": "Reason for the visit."
+      }
+    },
+    "required": [
+      "full_name",
+      "reason"
+    ]
+  },
+  {
+    "name": "select_time",
+    "description": "Record the slot the caller picks.",
+    "properties": {
+      "slot": {
+        "type": "string",
+        "description": "The chosen appointment slot.",
+        "enum": [
+          "Tuesday 10 AM",
+          "Thursday 2 PM"
+        ]
+      }
+    },
+    "required": [
+      "slot"
+    ]
+  }
+]

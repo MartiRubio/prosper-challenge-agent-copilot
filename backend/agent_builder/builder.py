@@ -18,6 +18,7 @@ from pipecat_flows import FlowManager, FlowsFunctionSchema, NodeConfig
 
 from application.track_active_node import track_active_node
 
+from .function_catalog import catalog_by_name
 from .schema import AgentConfig, Edge, Node
 
 
@@ -27,6 +28,7 @@ class AgentBuilder:
     def __init__(self, config: AgentConfig):
         self.config = config
         self._nodes_by_name = {n.name: n for n in config.nodes}
+        self._functions = catalog_by_name()
         self._validate()
 
     # ---- loading -----------------------------------------------------------
@@ -61,6 +63,13 @@ class AgentBuilder:
         """Return the entry NodeConfig; downstream nodes are built lazily on transition."""
         return self._make_node(self._nodes_by_name[self.config.initial_node])
 
+    def node_config(self, name: str) -> NodeConfig | None:
+        """Return one node's compiled config, for a jump during a test call."""
+        node = self._nodes_by_name.get(name)
+        if node is None:
+            return None
+        return self._make_node(node)
+
     def _make_node(self, node: Node) -> NodeConfig:
         node_config: NodeConfig = {
             "name": node.name,
@@ -86,10 +95,11 @@ class AgentBuilder:
             next_node = self._make_node(self._nodes_by_name[edge.target])
             return {"status": "success", **args}, next_node
 
+        spec = self._functions.get(edge.function, {})
         return FlowsFunctionSchema(
             name=edge.function,
-            description=edge.description,
-            properties=edge.properties,
-            required=edge.required,
+            description=spec.get("description", edge.description),
+            properties=spec.get("properties", edge.properties),
+            required=spec.get("required", edge.required),
             handler=handler,
         )
