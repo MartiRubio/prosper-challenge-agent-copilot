@@ -6,9 +6,10 @@
 # definition (JSON) via AgentBuilder and runs it. Swapping the agent is a data
 # change (edit/replace the JSON), not a code change.
 #
-#   example_flow.json  ->  AgentBuilder  ->  Pipecat Flows graph  ->  FlowManager
+#   agent JSON  ->  AgentBuilder  ->  Pipecat Flows graph  ->  FlowManager
 #
-# Run:  python bot.py   then open http://localhost:7860/client
+# A session body with agent_id loads backend/agents/<id>.json. With no id, the
+# bot loads example_flow.json (the prebuilt client at :7860/client).
 #
 
 import os
@@ -35,15 +36,10 @@ from pipecat.workers.runner import WorkerRunner
 from pipecat_flows import FlowManager
 
 from agent_builder import AgentBuilder
+from application.resolve_call_agent import resolve_call_agent
 
 # Load .env next to this file, so the bot runs the same from the repo root or backend/.
 load_dotenv(Path(__file__).parent / ".env", override=True)
-
-
-# The agent this bot runs. Point this at any agent JSON (the Phase 2 Composer
-# would generate one and drop it here).
-AGENT_FLOW = Path(__file__).parent / "example_flow.json"
-
 
 transport_params = {
     "webrtc": lambda: TransportParams(audio_in_enabled=True, audio_out_enabled=True),
@@ -112,7 +108,9 @@ async def run_bot(
 async def bot(runner_args: RunnerArguments):
     """Entry point invoked by the Pipecat dev runner (and Pipecat Cloud)."""
     transport = await create_transport(runner_args, transport_params)
-    builder = AgentBuilder.from_json(AGENT_FLOW)
+    flow_path = resolve_call_agent(getattr(runner_args, "body", None))
+    logger.info(f"Loading agent from {flow_path.name}")
+    builder = AgentBuilder.from_json(flow_path)
     await run_bot(transport, runner_args, builder)
 
 
