@@ -7,6 +7,7 @@ export function useOpenAgent() {
     const [agents, setAgents] = useState<AgentSummary[]>([]);
     const [agentId, setAgentId] = useState<string | null>(null);
     const [document, setDocument] = useState<AgentDocument | null>(null);
+    const [selectedNodeName, setSelectedNodeName] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -14,11 +15,18 @@ export function useOpenAgent() {
         setError(null);
         setAgentId(id);
         try {
-            setDocument(await getAgent(id));
+            const next = await getAgent(id);
+            setDocument(next);
+            setSelectedNodeName(next.initial_node);
         } catch (caught) {
             setDocument(null);
+            setSelectedNodeName(null);
             setError(caught instanceof Error ? caught.message : "Could not load the agent.");
         }
+    }, []);
+
+    const editDocument = useCallback((next: AgentDocument) => {
+        setDocument(next);
     }, []);
 
     useEffect(() => {
@@ -39,6 +47,7 @@ export function useOpenAgent() {
                 }
                 setAgentId(found[0].id);
                 setDocument(next);
+                setSelectedNodeName(next.initial_node);
                 setLoading(false);
             })
             .catch((caught: unknown) => {
@@ -53,5 +62,15 @@ export function useOpenAgent() {
         };
     }, []);
 
-    return { agents, agentId, document, loading, error, openAgent };
+    return {
+        agents,
+        agentId,
+        document,
+        selectedNodeName,
+        loading,
+        error,
+        openAgent,
+        selectNode: setSelectedNodeName,
+        editDocument,
+    };
 }

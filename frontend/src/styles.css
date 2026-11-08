@@ -43,7 +43,7 @@ h1 {
 
 .editor {
     display: grid;
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: 220px minmax(0, 1fr) 320px;
     min-height: 100vh;
 }
 
@@ -107,9 +107,90 @@ h1 {
 }
 
 .persona {
-    max-width: 62ch;
-    margin-top: 12px;
+    display: -webkit-box;
+    max-width: 72ch;
+    margin-top: 8px;
+    overflow: hidden;
     color: var(--muted);
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.inspector {
+    overflow: auto;
+    max-height: 100vh;
+    padding: 22px 16px 32px;
+    background: var(--panel);
+    border-left: 1px solid var(--line);
+}
+
+.inspector-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.inspector-row .eyebrow {
+    margin: 0;
+}
+
+.field {
+    display: grid;
+    gap: 6px;
+    margin: 12px 0;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.field input,
+.field textarea,
+.field select,
+.collected-field input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.95rem;
+    color: var(--ink);
+}
+
+.edge-card {
+    margin: 0 0 12px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+}
+
+.collected-field {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.9rem;
+    color: var(--ink);
+}
+
+.inspector button,
+.edge-card button {
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
 }
 
 .muted {
