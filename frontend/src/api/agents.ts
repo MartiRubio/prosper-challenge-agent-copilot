@@ -30,6 +30,13 @@ export async function createAgent(name?: string): Promise<{ id: string; agent: A
     return response.json() as Promise<{ id: string; agent: AgentDocument }>;
 }
 
+export async function deleteAgent(agentId: string): Promise<void> {
+    const response = await fetch(`${API_URL}/agents/${encodeURIComponent(agentId)}`, { method: "DELETE" });
+    if (!response.ok) {
+        throw new Error("Could not delete the agent.");
+    }
+}
+
 export async function saveAgent(agentId: string, document: AgentDocument): Promise<AgentDocument> {
     const response = await fetch(`${API_URL}/agents/${encodeURIComponent(agentId)}`, {
         method: "PUT",
