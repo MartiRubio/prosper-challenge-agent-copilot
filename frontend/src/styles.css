@@ -125,6 +125,38 @@ h1 {
     gap: 16px;
 }
 
+.stage-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.test-call {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.test-call p {
+    max-width: 18ch;
+    font-size: 0.85rem;
+}
+
+.call-button {
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--accent);
+    padding: 8px 14px;
+    cursor: pointer;
+}
+
+.call-button:disabled {
+    border-color: var(--line);
+    color: var(--muted);
+    cursor: default;
+}
+
 .save-button {
     border: 0;
     border-radius: 8px;

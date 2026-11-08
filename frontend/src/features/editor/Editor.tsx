@@ -2,6 +2,7 @@ import { AgentList } from "../agent-list/AgentList";
 import { AgentCanvas } from "../agent-graph/AgentCanvas";
 import { NodeInspector } from "../node-inspector/NodeInspector";
 import { setNodePositions } from "../graph-edits/setNodePositions";
+import { TestCall } from "../test-call/TestCall";
 import { useOpenAgent } from "./useOpenAgent";
 
 export function Editor() {
@@ -40,14 +41,17 @@ export function Editor() {
                                 <h1>{document.name}</h1>
                                 {document.persona && <p className="persona">{document.persona}</p>}
                             </div>
-                            <button
-                                type="button"
-                                className="save-button"
-                                onClick={() => void save()}
-                                disabled={!dirty || saving}
-                            >
-                                {saving ? "Saving…" : "Save"}
-                            </button>
+                            <div className="stage-actions">
+                                <TestCall agentId={agentId} disabled={dirty} />
+                                <button
+                                    type="button"
+                                    className="save-button"
+                                    onClick={() => void save()}
+                                    disabled={!dirty || saving}
+                                >
+                                    {saving ? "Saving…" : "Save"}
+                                </button>
+                            </div>
                         </header>
                         <AgentCanvas
                             key={agentId ?? document.name}
