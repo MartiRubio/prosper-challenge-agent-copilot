@@ -10,6 +10,12 @@ export type FlowEdgeData = DrawnEdge & {
     removable: boolean;
 };
 
+export type ReviewMarks = {
+    nodes: Record<string, "add" | "change" | "remove">;
+    edges: Record<string, "add" | "change" | "remove">;
+    hot: string[];
+};
+
 const markerEnd = { type: MarkerType.ArrowClosed, color: "#0f6e56" };
 
 export function flowStructureKey(document: AgentDocument): string {
@@ -25,6 +31,7 @@ export function projectNodes(
     current: Node[],
     activeNodeName: string | null,
     carry: { from: string; to: string } | null,
+    review: ReviewMarks | null = null,
 ): Node[] {
     const positions = placedPositions(document, current, carry);
     const sides = handleSides(document, positions);
@@ -34,20 +41,20 @@ export function projectNodes(
         selected.add(carry.to);
     }
     const nodes: Node[] = [
-        flowNode(START_ID, "marker", { label: "Start" }, positions, sides, selected, activeNodeName),
+        flowNode(START_ID, "marker", { label: "Start" }, positions, sides, selected, activeNodeName, review),
         ...document.nodes.map((node) =>
-            flowNode(node.name, "step", {}, positions, sides, selected, activeNodeName),
+            flowNode(node.name, "step", {}, positions, sides, selected, activeNodeName, review),
         ),
-        flowNode(END_ID, "marker", { label: "End" }, positions, sides, selected, activeNodeName),
+        flowNode(END_ID, "marker", { label: "End" }, positions, sides, selected, activeNodeName, review),
     ];
     return sameNodes(current, nodes) ? current : nodes;
 }
 
-export function projectEdges(document: AgentDocument, current: Edge[]): Edge[] {
+export function projectEdges(document: AgentDocument, current: Edge[], review: ReviewMarks | null = null): Edge[] {
     const selected = new Set(current.filter((edge) => edge.selected).map((edge) => edge.id));
     const edges: Edge[] = [];
     if (document.nodes.some((node) => node.name === document.initial_node)) {
-        edges.push(flowEdge("marker:start", START_ID, document.initial_node, {
+        edges.push(flowEdge("marker:start", START_ID, document.initial_node, undefined, {
             kind: "start",
             source: START_ID,
             removable: false,
@@ -55,18 +62,20 @@ export function projectEdges(document: AgentDocument, current: Edge[]): Edge[] {
     }
     for (const node of document.nodes) {
         for (const edge of node.edges ?? []) {
-            edges.push(flowEdge(`edge:${node.name}:${edge.function}`, node.name, edge.target, {
+            edges.push(flowEdge(`edge:${node.name}:${edge.function}`, node.name, edge.target, undefined, {
                 kind: "step",
                 source: node.name,
                 functionName: edge.function,
                 removable: true,
+                review: review?.edges[`${node.name}:${edge.function}`],
             }, selected));
         }
         if (node.end) {
-            edges.push(flowEdge(`marker:end:${node.name}`, node.name, END_ID, {
+            edges.push(flowEdge(`marker:end:${node.name}`, node.name, END_ID, undefined, {
                 kind: "end",
                 source: node.name,
                 removable: true,
+                review: review?.edges[`${node.name}:end`],
             }, selected));
         }
     }
@@ -96,18 +105,24 @@ function flowNode(
     sides: Record<string, { source: Position; target: Position }>,
     selected: Set<string>,
     activeNodeName: string | null,
+    review: ReviewMarks | null,
 ): Node {
     const pointed = sides[id];
+    const classes = [
+        id === activeNodeName ? "active-call-node" : "",
+        review?.nodes[id] ? `review-${review.nodes[id]}` : "",
+        review?.hot.includes(id) ? "review-hot" : "",
+    ].filter(Boolean);
     return {
         id,
         type,
         position: positions[id] ?? { x: 0, y: 0 },
         data,
         selected: selected.has(id),
-        sourcePosition: pointed?.source ?? Position.Right,
-        targetPosition: pointed?.target ?? Position.Left,
+        sourcePosition: pointed?.source ?? Position.Bottom,
+        targetPosition: pointed?.target ?? Position.Top,
         deletable: false,
-        className: id === activeNodeName ? "active-call-node" : undefined,
+        className: classes.join(" ") || undefined,
     };
 }
 
@@ -115,6 +130,7 @@ function flowEdge(
     id: string,
     source: string,
     target: string,
+    sourceHandle: string | undefined,
     data: FlowEdgeData,
     selected: Set<string>,
 ): Edge<FlowEdgeData> {
@@ -122,6 +138,7 @@ function flowEdge(
         id,
         source,
         target,
+        sourceHandle,
         type: "removable",
         data,
         selected: selected.has(id),
@@ -158,6 +175,8 @@ function sameEdges(current: Edge[], next: Edge[]): boolean {
             && previous.id === edge.id
             && previous.source === edge.source
             && previous.target === edge.target
-            && previous.selected === edge.selected;
+            && previous.sourceHandle === edge.sourceHandle
+            && previous.selected === edge.selected
+            && (previous.data as FlowEdgeData | undefined)?.review === edge.data?.review;
     });
 }

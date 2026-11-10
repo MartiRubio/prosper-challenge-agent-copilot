@@ -39,7 +39,6 @@ export type AgentDocument = {
     persona?: string;
     initial_node: string;
     nodes: AgentNode[];
-    layout?: Record<string, NodePosition>;
 };
 
 export type AgentSummary = {

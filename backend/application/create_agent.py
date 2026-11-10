@@ -2,7 +2,6 @@
 
 import re
 
-from agent_builder import AgentBuilder
 from agent_builder.schema import DEFAULT_MODEL, DEFAULT_VOICE_ID
 from infrastructure.agent_files import agent_path, write_document
 
@@ -23,22 +22,9 @@ def create_agent(name: str | None = None) -> dict:
         "voice_id": DEFAULT_VOICE_ID,
         "model": DEFAULT_MODEL,
         "persona": _PERSONA,
-        "initial_node": "greeting",
-        "nodes": [
-            {
-                "name": "greeting",
-                "task_messages": [
-                    {
-                        "role": "developer",
-                        "content": "Greet the caller and ask how you can help with their appointment.",
-                    }
-                ],
-                "edges": [],
-                "end": True,
-            }
-        ],
+        "initial_node": "",
+        "nodes": [],
     }
-    AgentBuilder.from_dict(document)
     write_document(agent_id, document)
     return {"id": agent_id, "agent": document}
 

@@ -183,7 +183,7 @@ export function TestCall({
                 type="button"
                 className="call-button"
                 onClick={onMain}
-                disabled={!agentId || !agent}
+                disabled={!agentId || !agent || agent.nodes.length === 0}
             >
                 {live ? <PhoneOff className="nav-icon" aria-hidden="true" /> : showChoices ? <Play className="nav-icon icon-call" aria-hidden="true" /> : <Phone className="nav-icon icon-call" aria-hidden="true" />}
                 {live ? "End call" : showChoices ? "Start" : "Test call"}

@@ -55,7 +55,7 @@
       "task_messages": [
         {
           "role": "developer",
-          "content": "Offer exactly two options: Tuesday at 10 AM, or Thursday at 2 PM. Ask which one works for them."
+          "content": "Offer exactly two options: Tuesday at 10 AM, or Thursday at 2 PM. If one works, record it. If neither works, apologise and move on."
         }
       ],
       "edges": [
@@ -71,8 +71,25 @@
             }
           },
           "required": ["slot"]
+        },
+        {
+          "function": "decline_times",
+          "description": "Caller cannot make either offered time.",
+          "target": "callback",
+          "properties": {},
+          "required": []
         }
       ]
+    },
+    {
+      "name": "callback",
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "Apologise that neither time works, ask the caller to try again in a few days, thank them, and say goodbye."
+        }
+      ],
+      "end": true
     },
     {
       "name": "confirm",

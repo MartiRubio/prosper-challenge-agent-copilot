@@ -10,9 +10,9 @@ export function MarkerNode({ id, data, sourcePosition, targetPosition }: NodePro
     }, [id, sourcePosition, targetPosition, updateInternals]);
     return (
         <div className="marker-node">
-            {start ? null : <Handle type="target" position={targetPosition ?? Position.Left} />}
+            {start ? null : <Handle type="target" position={targetPosition ?? Position.Top} />}
             {label}
-            {start ? <Handle type="source" position={sourcePosition ?? Position.Right} /> : null}
+            {start ? <Handle type="source" position={sourcePosition ?? Position.Bottom} /> : null}
         </div>
     );
 }

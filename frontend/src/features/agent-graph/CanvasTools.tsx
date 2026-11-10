@@ -1,16 +1,18 @@
 import { useEffect } from "react";
 import { useReactFlow } from "@xyflow/react";
-import { LayoutGrid, Plus, Trash2 } from "lucide-react";
+import { LayoutGrid, Plus, ScrollText, Trash2 } from "lucide-react";
 
 type CanvasToolsProps = {
     arrangeToken: number;
     canRemove: boolean;
+    promptOpen: boolean;
     onArrange: () => void;
     onRemove: () => void;
+    onPrompt: () => void;
     onAdd: () => void;
 };
 
-export function CanvasTools({ arrangeToken, canRemove, onArrange, onRemove, onAdd }: CanvasToolsProps) {
+export function CanvasTools({ arrangeToken, canRemove, promptOpen, onArrange, onRemove, onPrompt, onAdd }: CanvasToolsProps) {
     const { fitView } = useReactFlow();
     useEffect(() => {
         if (arrangeToken === 0) {
@@ -27,6 +29,10 @@ export function CanvasTools({ arrangeToken, canRemove, onArrange, onRemove, onAd
             <button type="button" className="pill danger" onClick={onRemove} disabled={!canRemove}>
                 <Trash2 className="nav-icon" aria-hidden="true" />
                 Remove
+            </button>
+            <button type="button" className="pill" aria-pressed={promptOpen} onClick={onPrompt}>
+                <ScrollText className="nav-icon icon-prompt" aria-hidden="true" />
+                General prompt
             </button>
             <button type="button" className="pill" onClick={onAdd}>
                 <Plus className="nav-icon icon-add" aria-hidden="true" />

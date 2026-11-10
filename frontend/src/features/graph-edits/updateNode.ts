@@ -59,10 +59,6 @@ export function renameNode(document: AgentDocument, from: string, to: string): A
             }
         }
     }
-    if (next.layout?.[from]) {
-        next.layout[name] = next.layout[from];
-        delete next.layout[from];
-    }
     return next;
 }
 
@@ -81,7 +77,7 @@ export function addNode(document: AgentDocument): AgentDocument {
 }
 
 export function removeNode(document: AgentDocument, nodeName: string): AgentDocument {
-    if (document.nodes.length <= 1) {
+    if (!document.nodes.some((node) => node.name === nodeName)) {
         return document;
     }
     const next = cloneDocument(document);
@@ -90,10 +86,7 @@ export function removeNode(document: AgentDocument, nodeName: string): AgentDocu
         node.edges = (node.edges ?? []).filter((edge) => edge.target !== nodeName);
     }
     if (next.initial_node === nodeName) {
-        next.initial_node = next.nodes[0].name;
-    }
-    if (next.layout) {
-        delete next.layout[nodeName];
+        next.initial_node = next.nodes[0]?.name ?? "";
     }
     return next;
 }

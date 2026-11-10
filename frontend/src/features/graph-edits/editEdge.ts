@@ -20,6 +20,28 @@ export function functionOptions(
     return [NO_FUNCTION, ...[...names].filter((name) => !used.has(name)).sort()];
 }
 
+export function renameFunctionEdges(
+    document: AgentDocument,
+    previous: string,
+    next: FunctionTemplate,
+): AgentDocument {
+    const clone = structuredClone(document);
+    let changed = false;
+    for (const node of clone.nodes) {
+        for (const edge of node.edges ?? []) {
+            if (edge.function !== previous) {
+                continue;
+            }
+            edge.function = next.name;
+            edge.description = next.description;
+            edge.properties = {};
+            edge.required = [];
+            changed = true;
+        }
+    }
+    return changed ? clone : document;
+}
+
 export function assignEdgeFunction(
     document: AgentDocument,
     source: string,
@@ -51,8 +73,8 @@ export function assignEdgeFunction(
     }
     updated.function = choice;
     updated.description = template.description;
-    updated.properties = structuredClone(template.properties ?? {});
-    updated.required = [...(template.required ?? [])];
+    updated.properties = {};
+    updated.required = [];
     return next;
 }
 

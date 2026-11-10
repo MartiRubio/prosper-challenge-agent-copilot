@@ -7,10 +7,10 @@ export function StepNode({ id, sourcePosition, targetPosition }: NodeProps) {
         updateInternals(id);
     }, [id, sourcePosition, targetPosition, updateInternals]);
     return (
-        <div className="step-node" title="Double-click to edit the spoken task">
-            <Handle type="target" position={targetPosition ?? Position.Left} />
+        <div className="step-node" title="Click to edit what this step says">
+            <Handle type="target" position={targetPosition ?? Position.Top} />
             <span className="step-name">{id}</span>
-            <Handle type="source" position={sourcePosition ?? Position.Right} />
+            <Handle type="source" position={sourcePosition ?? Position.Bottom} />
         </div>
     );
 }

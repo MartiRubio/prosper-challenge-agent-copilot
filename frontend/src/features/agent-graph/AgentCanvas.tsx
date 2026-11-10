@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
     Background,
     Controls,
+    Panel,
     ReactFlow,
+    getNodesBounds,
     useEdgesState,
     useNodesState,
+    useViewport,
     type Connection,
     type Edge,
     type EdgeChange,
@@ -25,8 +28,8 @@ import { edgeTypes } from "./RemovableEdge";
 import { GraphActionsProvider, type GraphActions } from "./GraphActions";
 import { isCallMarker } from "./markers";
 import { nodeTypes } from "./nodeTypes";
-import { PromptEditor } from "../prompt-editor/PromptEditor";
-import { flowStructureKey, projectEdges, projectNodes, type FlowEdgeData } from "./syncFlow";
+import type { FocusChip } from "../copilot/focus";
+import { flowStructureKey, projectEdges, projectNodes, type FlowEdgeData, type ReviewMarks } from "./syncFlow";
 
 type AgentCanvasProps = {
     document: AgentDocument;
@@ -35,34 +38,55 @@ type AgentCanvasProps = {
     functions: FunctionTemplate[];
     picking?: boolean;
     onPick?: (nodeName: string) => void;
+    review?: ReviewMarks | null;
+    locked?: boolean;
+    onFocus?: (chips: FocusChip[]) => void;
+    renameCarry?: { from: string; to: string } | null;
+    onOpenNode?: (nodeName: string) => void;
+    promptOpen?: boolean;
+    onOpenPrompt?: () => void;
 };
 
-export function AgentCanvas({ document, activeNodeName, onChange, functions, picking = false, onPick }: AgentCanvasProps) {
+export function AgentCanvas({
+    document,
+    activeNodeName,
+    onChange,
+    functions,
+    picking = false,
+    onPick,
+    review = null,
+    locked = false,
+    onFocus,
+    renameCarry = null,
+    onOpenNode,
+    promptOpen = false,
+    onOpenPrompt,
+}: AgentCanvasProps) {
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>(projectNodes(document, [], null, null));
     const [edges, setEdges, applyEdgeChanges] = useEdgesState<Edge>(projectEdges(document, []));
     const [arrangeToken, setArrangeToken] = useState(0);
     const [carry, setCarry] = useState<{ from: string; to: string } | null>(null);
     const [pendingSelect, setPendingSelect] = useState<string | null>(null);
-    const [taskNode, setTaskNode] = useState<string | null>(null);
     const structure = flowStructureKey(document);
-    const spokenTask = document.nodes.find((node) => node.name === taskNode)?.task_messages?.[0]?.content ?? "";
+    const reviewKey = JSON.stringify(review ?? null);
+    const placedCarry = carry ?? renameCarry;
 
     useEffect(() => {
         setNodes((current) => {
-            const next = projectNodes(document, current, activeNodeName, carry);
+            const next = projectNodes(document, current, activeNodeName, placedCarry, review);
             if (!pendingSelect) {
                 return next;
             }
             return next.map((node) => ({ ...node, selected: node.id === pendingSelect }));
         });
-        setEdges((current) => projectEdges(document, current));
+        setEdges((current) => projectEdges(document, current, review));
         if (carry) {
             setCarry(null);
         }
         if (pendingSelect) {
             setPendingSelect(null);
         }
-    }, [structure, activeNodeName, carry, pendingSelect, document, setNodes, setEdges]);
+    }, [structure, reviewKey, activeNodeName, placedCarry, pendingSelect, document, review, setNodes, setEdges]);
 
     const actions = useMemo<GraphActions>(() => ({
         document,
@@ -109,23 +133,8 @@ export function AgentCanvas({ document, activeNodeName, onChange, functions, pic
         }
     }
 
-    function renameTaskNode(nextName: string): boolean {
-        if (!taskNode) {
-            return false;
-        }
-        const next = renameNode(document, taskNode, nextName);
-        if (next === document) {
-            return false;
-        }
-        const trimmed = nextName.trim();
-        setCarry({ from: taskNode, to: trimmed });
-        setTaskNode(trimmed);
-        onChange(next);
-        return true;
-    }
-
     function onConnect(connection: Connection) {
-        if (!connection.source || !connection.target) {
+        if (locked || !connection.source || !connection.target) {
             return;
         }
         const next = connectNodes(document, connection.source, connection.target);
@@ -135,7 +144,15 @@ export function AgentCanvas({ document, activeNodeName, onChange, functions, pic
     }
 
     function arrange() {
-        const positions = arrangeNodes(document);
+        const sizes: Record<string, { width: number; height: number }> = {};
+        for (const node of nodes) {
+            const width = node.measured?.width ?? node.width;
+            const height = node.measured?.height ?? node.height;
+            if (width && height) {
+                sizes[node.id] = { width, height };
+            }
+        }
+        const positions = arrangeNodes(document, sizes);
         const sides = handleSides(document, positions);
         setNodes((current) => current.map((node) => ({
             ...node,
@@ -147,17 +164,20 @@ export function AgentCanvas({ document, activeNodeName, onChange, functions, pic
     }
 
     function addStep() {
+        if (locked) {
+            return;
+        }
         const next = addNode(document);
         setPendingSelect(next.nodes[next.nodes.length - 1]?.name ?? null);
         onChange(next);
     }
 
     function removeSelected() {
+        if (locked) {
+            return;
+        }
         const node = nodes.find((item) => item.selected && !isCallMarker(item.id));
         if (node) {
-            if (document.nodes.length <= 1) {
-                return;
-            }
             onChange(removeNode(document, node.id));
             return;
         }
@@ -168,7 +188,7 @@ export function AgentCanvas({ document, activeNodeName, onChange, functions, pic
         }
     }
 
-    const canRemove = nodes.some((node) => node.selected && !isCallMarker(node.id) && document.nodes.length > 1)
+    const canRemove = nodes.some((node) => node.selected && !isCallMarker(node.id))
         || edges.some((edge) => edge.selected && (edge.data as FlowEdgeData | undefined)?.removable);
 
     return (
@@ -182,8 +202,8 @@ export function AgentCanvas({ document, activeNodeName, onChange, functions, pic
                     onInit={(instance) => {
                         void instance.fitView({ padding: 0.2 });
                     }}
-                    minZoom={0.85}
-                    nodesConnectable
+                    minZoom={0.35}
+                    nodesConnectable={!locked}
                     zoomOnDoubleClick={false}
                     isValidConnection={(connection) => canConnect(document, connection.source, connection.target)}
                     onNodesChange={onNodesChange}
@@ -195,20 +215,13 @@ export function AgentCanvas({ document, activeNodeName, onChange, functions, pic
                         if (!(target instanceof Element) || target.closest("input, textarea, select, button, .react-flow__handle")) {
                             return;
                         }
+                        if (!isCallMarker(node.id)) {
+                            onOpenNode?.(node.id);
+                        }
                         if (!picking || !onPick || isCallMarker(node.id)) {
                             return;
                         }
                         onPick(node.id);
-                    }}
-                    onNodeDoubleClick={(event, node) => {
-                        if (picking) {
-                            return;
-                        }
-                        const target = event.target;
-                        if (!(target instanceof Element) || target.closest(".react-flow__handle") || isCallMarker(node.id)) {
-                            return;
-                        }
-                        setTaskNode(node.id);
                     }}
                     onEdgeClick={() => {
                         setNodes((current) => current.map((node) => ({ ...node, selected: false })));
@@ -216,31 +229,72 @@ export function AgentCanvas({ document, activeNodeName, onChange, functions, pic
                 >
                     <CanvasTools
                         arrangeToken={arrangeToken}
-                        canRemove={canRemove}
+                        canRemove={canRemove && !locked}
+                        promptOpen={promptOpen}
                         onArrange={arrange}
                         onRemove={removeSelected}
+                        onPrompt={() => onOpenPrompt?.()}
                         onAdd={addStep}
                     />
+                    {onFocus ? <SendToChat nodes={nodes} edges={edges} onFocus={onFocus} /> : null}
                     <Background />
                     <Controls showInteractive={false} />
                 </ReactFlow>
             </GraphActionsProvider>
-            {taskNode && document.nodes.some((node) => node.name === taskNode) && (
-                <PromptEditor
-                    title={taskNode}
-                    label="Spoken task"
-                    value={spokenTask}
-                    model={document.model ?? "gpt-4o"}
-                    name={taskNode}
-                    onRename={renameTaskNode}
-                    onChange={(content) => onChange(setTaskContent(document, taskNode, content))}
-                    onClose={() => setTaskNode(null)}
-                />
-            )}
         </div>
     );
 }
 
 function edgeById(edges: Edge[], id: string): FlowEdgeData | undefined {
     return edges.find((edge) => edge.id === id)?.data as FlowEdgeData | undefined;
+}
+
+function SendToChat({
+    nodes,
+    edges,
+    onFocus,
+}: {
+    nodes: Node[];
+    edges: Edge[];
+    onFocus: (chips: FocusChip[]) => void;
+}) {
+    const selectedNodes = nodes.filter((node) => node.selected && !isCallMarker(node.id));
+    const selectedEdges = edges.filter((edge) => edge.selected && (edge.data as FlowEdgeData | undefined)?.functionName);
+    if (selectedNodes.length === 0 && selectedEdges.length === 0) {
+        return null;
+    }
+    const bounds = selectedNodes.length > 0 ? getNodesBounds(selectedNodes) : { x: 40, y: 40, width: 0, height: 0 };
+    const chips: FocusChip[] = [
+        ...selectedNodes.map((node) => ({ kind: "node" as const, label: node.id })),
+        ...selectedEdges.flatMap((edge) => {
+            const label = (edge.data as FlowEdgeData | undefined)?.functionName;
+            return label ? [{ kind: "edge" as const, label }] : [];
+        }),
+    ];
+    return (
+        <SendToChatButton left={bounds.x} top={bounds.y} onClick={() => onFocus(chips)} />
+    );
+}
+
+function SendToChatButton({ left, top, onClick }: { left: number; top: number; onClick: () => void }) {
+    const { x, y, zoom } = useViewport();
+    return (
+        <Panel
+            position="top-left"
+            className="send-to-chat nopan nodrag"
+            style={{ left: left * zoom + x, top: top * zoom + y, margin: 0 }}
+        >
+            <button
+                type="button"
+                className="pill nopan nodrag"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                    event.stopPropagation();
+                    onClick();
+                }}
+            >
+                Send to chat
+            </button>
+        </Panel>
+    );
 }

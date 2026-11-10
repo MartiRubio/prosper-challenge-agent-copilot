@@ -10,36 +10,44 @@
 #
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Union
 
 from loguru import logger
 from pipecat_flows import FlowManager, FlowsFunctionSchema, NodeConfig
 
-from application.track_active_node import track_active_node
-
 from .function_catalog import catalog_by_name
 from .schema import AgentConfig, Edge, Node
+
+
+def _with_destination(description: str, target: str) -> str:
+    continuation = f"Continue to {target}."
+    text = (description or "").strip()
+    if continuation in text:
+        return text
+    return f"{text} {continuation}".strip()
 
 
 class AgentBuilder:
     """Builds a runnable Pipecat Flows graph from a declarative AgentConfig."""
 
-    def __init__(self, config: AgentConfig):
+    def __init__(self, config: AgentConfig, on_transition: Callable[[str], None] | None = None):
         self.config = config
+        self._on_transition = on_transition
         self._nodes_by_name = {n.name: n for n in config.nodes}
         self._functions = catalog_by_name()
         self._validate()
 
     # ---- loading -----------------------------------------------------------
     @classmethod
-    def from_dict(cls, data: dict) -> "AgentBuilder":
-        return cls(AgentConfig.from_dict(data))
+    def from_dict(cls, data: dict, on_transition: Callable[[str], None] | None = None) -> "AgentBuilder":
+        return cls(AgentConfig.from_dict(data), on_transition=on_transition)
 
     @classmethod
-    def from_json(cls, path: Union[str, Path]) -> "AgentBuilder":
+    def from_json(cls, path: Union[str, Path], on_transition: Callable[[str], None] | None = None) -> "AgentBuilder":
         data = json.loads(Path(path).read_text())
-        return cls.from_dict(data)
+        return cls.from_dict(data, on_transition=on_transition)
 
     # ---- validation --------------------------------------------------------
     def _validate(self) -> None:
@@ -91,15 +99,24 @@ class AgentBuilder:
             # Persist what the caller gave us so later nodes can use it.
             flow_manager.state.update(args)
             logger.info(f"[{edge.function}] -> {edge.target} | collected: {args}")
-            track_active_node(edge.target)
+            if self._on_transition is not None:
+                self._on_transition(edge.target)
             next_node = self._make_node(self._nodes_by_name[edge.target])
             return {"status": "success", **args}, next_node
 
-        spec = self._functions.get(edge.function, {})
+        if edge.function in self._functions:
+            spec = self._functions[edge.function]
+            description = spec.get("description") or edge.description
+            properties = spec.get("properties") or {}
+            required = spec.get("required") or []
+        else:
+            description = edge.description
+            properties = edge.properties
+            required = edge.required
         return FlowsFunctionSchema(
             name=edge.function,
-            description=spec.get("description", edge.description),
-            properties=spec.get("properties", edge.properties),
-            required=spec.get("required", edge.required),
+            description=_with_destination(description, edge.target),
+            properties=properties,
+            required=required,
             handler=handler,
         )

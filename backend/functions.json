@@ -51,5 +51,41 @@
     "required": [
       "slot"
     ]
+  },
+  {
+    "name": "decline_times",
+    "description": "Caller cannot make either offered time.",
+    "properties": {},
+    "required": []
+  },
+  {
+    "name": "go_confirm",
+    "description": "Caller cannot make either offered time.",
+    "properties": {},
+    "required": []
+  },
+  {
+    "name": "new_function",
+    "description": "",
+    "properties": {},
+    "required": []
+  },
+  {
+    "name": "go_collect_name_new",
+    "description": "Caller wants to book a new appointment.",
+    "properties": {},
+    "required": []
+  },
+  {
+    "name": "go_confirm_new",
+    "description": "Caller selects a time.",
+    "properties": {},
+    "required": []
+  },
+  {
+    "name": "go_collect_new_appointment_details",
+    "description": "Caller wants to book a new appointment.",
+    "properties": {},
+    "required": []
   }
 ]
