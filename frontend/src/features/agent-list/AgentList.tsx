@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import type { AgentSummary } from "../editor/agentDocument";
 
@@ -14,6 +14,10 @@ type AgentListProps = {
 };
 
 export function AgentList({ agents, selectedId, loading, onSelect, onCreate, onRename, onDelete }: AgentListProps) {
+    const [editing, setEditing] = useState(false);
+    useEffect(() => {
+        setEditing(false);
+    }, [selectedId]);
     return (
         <div className="nav-list">
             <div className="inspector-row">
@@ -30,12 +34,27 @@ export function AgentList({ agents, selectedId, loading, onSelect, onCreate, onR
                     {agents.map((agent) => (
                         <li key={agent.id} className="nav-row">
                             {agent.id === selectedId ? (
-                                <AgentName name={agent.name} onRename={onRename} />
+                                <AgentName
+                                    name={agent.name}
+                                    editing={editing}
+                                    onRename={onRename}
+                                    onDone={() => setEditing(false)}
+                                />
                             ) : (
                                 <button type="button" className="pill agent-pill" onClick={() => onSelect(agent.id)}>
                                     {agent.name}
                                 </button>
                             )}
+                            {agent.id === selectedId ? (
+                                <button
+                                    type="button"
+                                    className="icon-button is-edit"
+                                    aria-label={`Rename ${agent.name}`}
+                                    onClick={() => setEditing(true)}
+                                >
+                                    <Pencil className="nav-icon" aria-hidden="true" />
+                                </button>
+                            ) : null}
                             <button
                                 type="button"
                                 className="icon-button"
@@ -52,25 +71,51 @@ export function AgentList({ agents, selectedId, loading, onSelect, onCreate, onR
     );
 }
 
-function AgentName({ name, onRename }: { name: string; onRename: (name: string) => void }) {
+function AgentName({
+    name,
+    editing,
+    onRename,
+    onDone,
+}: {
+    name: string;
+    editing: boolean;
+    onRename: (name: string) => void;
+    onDone: () => void;
+}) {
     const [draft, setDraft] = useState(name);
-    const focused = useRef(false);
-    useEffect(() => {
-        if (!focused.current) {
-            setDraft(name);
-        }
-    }, [name]);
+    const [tracked, setTracked] = useState(name);
+    const skip = useRef(false);
+    if (name !== tracked) {
+        setTracked(name);
+        setDraft(name);
+    }
+    if (!editing) {
+        return <span className="pill agent-name is-quiet">{name}</span>;
+    }
     return (
         <input
             className="pill-input agent-name"
             aria-label="Agent name"
             value={draft}
-            onFocus={() => {
-                focused.current = true;
-            }}
+            autoFocus
             onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                    skip.current = true;
+                    setDraft(name);
+                    onDone();
+                }
+                if (event.key === "Enter") {
+                    event.currentTarget.blur();
+                }
+            }}
             onBlur={() => {
-                focused.current = false;
+                onDone();
+                if (skip.current) {
+                    skip.current = false;
+                    setDraft(name);
+                    return;
+                }
                 const trimmed = draft.trim();
                 onRename(trimmed);
                 setDraft(trimmed || name);
