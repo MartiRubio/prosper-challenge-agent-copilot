@@ -61,3 +61,9 @@ A click during a live call does not move the conversation. Test call first becom
 ## 2026-11-08 — The call uses the screen
 
 A test call was reading the saved file, so unsaved edits could not be heard, and the button had to be saved first. The editor now sends the graph on screen with the start request. Save still writes the file. Test data sits next to Test call, and that button stays in place when it becomes Start. Auto-arrange wraps the row so the step names stay large. The next row runs back the other way, so the arrow into that row stays as short as the others. The controls use Lucide icons, colored by what they open.
+
+## 2026-11-09 — Copilot
+
+A step's outgoing arrows each carry one function, chosen on the anchor rather than on the line. offer_times now branches to confirm or callback. The tool text the model hears names the next step.
+
+The copilot chat sits left of the canvas. It proposes small changes. The canvas colors what would be added, rewritten, or removed, and each card can be kept or discarded. Call log lists sample calls for the scheduler. Flagging several and choosing Improve uses that same review. Save is still explicit. A new agent opens as Start and End only.

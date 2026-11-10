@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from interfaces.http.active_node_router import router as active_node_router
 from interfaces.http.agents_router import router as agents_router
+from interfaces.http.copilot_router import router as copilot_router
 from interfaces.http.functions_router import router as functions_router
 
 app = FastAPI(title="Prosper agent API")
@@ -20,3 +21,4 @@ app.add_middleware(
 app.include_router(agents_router)
 app.include_router(functions_router)
 app.include_router(active_node_router)
+app.include_router(copilot_router)

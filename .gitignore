@@ -22,6 +22,9 @@ env/
 # ---- Live call status ----
 backend/runtime/
 
+# ---- Model prompts and answers ----
+backend/logs/llm/
+
 # ---- Node / frontend (Phase 1 UI later) ----
 node_modules/
 .next/

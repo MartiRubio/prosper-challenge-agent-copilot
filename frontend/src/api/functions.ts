@@ -10,6 +10,17 @@ export async function listFunctions(): Promise<FunctionTemplate[]> {
     return response.json() as Promise<FunctionTemplate[]>;
 }
 
+export async function renameFunction(previous: string, name: string, agentId: string | null): Promise<void> {
+    const response = await fetch(`${API_URL}/functions/rename`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from: previous, to: name, agent_id: agentId }),
+    });
+    if (!response.ok) {
+        throw new Error("Could not rename that function on the other agents.");
+    }
+}
+
 export async function saveFunctions(functions: FunctionTemplate[]): Promise<FunctionTemplate[]> {
     const response = await fetch(`${API_URL}/functions`, {
         method: "PUT",

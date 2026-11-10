@@ -7,25 +7,27 @@ export function useOpenAgent() {
     const [agents, setAgents] = useState<AgentSummary[]>([]);
     const [agentId, setAgentId] = useState<string | null>(null);
     const [document, setDocument] = useState<AgentDocument | null>(null);
-    const [selectedNodeName, setSelectedNodeName] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [dirty, setDirty] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const documentRef = useRef(document);
+    const dirtyRef = useRef(dirty);
     documentRef.current = document;
+    dirtyRef.current = dirty;
 
     const openAgent = useCallback(async (id: string) => {
+        if (dirtyRef.current && !window.confirm("This agent has unsaved changes. Leave without saving?")) {
+            return;
+        }
         setError(null);
         try {
             const next = await getAgent(id);
             setAgentId(id);
             setDocument(next);
-            setSelectedNodeName(next.initial_node);
             setDirty(false);
         } catch (caught) {
             setDocument(null);
-            setSelectedNodeName(null);
             setDirty(false);
             setError(caught instanceof Error ? caught.message : "Could not load the agent.");
         }
@@ -62,6 +64,10 @@ export function useOpenAgent() {
     }, []);
 
     const removeAgent = useCallback(async (id: string) => {
+        const name = agents.find((agent) => agent.id === id)?.name ?? "this agent";
+        if (!window.confirm(`Delete ${name}?`)) {
+            return;
+        }
         setError(null);
         const rest = agents.filter((agent) => agent.id !== id);
         try {
@@ -74,11 +80,11 @@ export function useOpenAgent() {
         if (agentId !== id) {
             return;
         }
+        dirtyRef.current = false;
         const next = rest[0];
         if (!next) {
             setAgentId(null);
             setDocument(null);
-            setSelectedNodeName(null);
             setDirty(false);
             return;
         }
@@ -86,6 +92,9 @@ export function useOpenAgent() {
     }, [agentId, agents, openAgent]);
 
     const createNewAgent = useCallback(async () => {
+        if (dirtyRef.current && !window.confirm("This agent has unsaved changes. Leave without saving?")) {
+            return;
+        }
         setError(null);
         try {
             const created = await createAgent();
@@ -96,7 +105,6 @@ export function useOpenAgent() {
             );
             setAgentId(created.id);
             setDocument(created.agent);
-            setSelectedNodeName(created.agent.initial_node);
             setDirty(false);
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : "Could not create the agent.");
@@ -141,7 +149,6 @@ export function useOpenAgent() {
                 }
                 setAgentId(found[0].id);
                 setDocument(next);
-                setSelectedNodeName(next.initial_node);
                 setLoading(false);
             })
             .catch((caught: unknown) => {
@@ -160,16 +167,15 @@ export function useOpenAgent() {
         agents,
         agentId,
         document,
-        selectedNodeName,
         loading,
         saving,
         dirty,
         error,
+        setError,
         openAgent,
         createNewAgent,
         removeAgent,
         save,
-        selectNode: setSelectedNodeName,
         editDocument,
         renameOpenAgent,
         setPersona,

@@ -40,6 +40,7 @@ from application.announce_node import bind_node_announcer
 from application.jump_to_node import jump_to_node
 from application.load_call_agent import load_call_agent
 from application.opening_node import opening_node
+from application.record_call import record_call
 from application.track_active_node import bind_call_agent, clear_tracked_node, track_active_node
 
 # Load .env next to this file, so the bot runs the same from the repo root or backend/.
@@ -51,7 +52,10 @@ transport_params = {
 
 
 async def run_bot(
-    transport: BaseTransport, runner_args: RunnerArguments, builder: AgentBuilder
+    transport: BaseTransport,
+    runner_args: RunnerArguments,
+    builder: AgentBuilder,
+    agent_id: str | None,
 ) -> None:
     config = builder.config
     logger.info(f"Starting '{config.name}' with {len(config.nodes)} nodes")
@@ -106,9 +110,22 @@ async def run_bot(
     async def on_app_message(transport, message, sender):
         await jump_to_node(flow_manager, context, builder, message)
 
+    saved = False
+
+    def save_call() -> None:
+        nonlocal saved
+        if saved:
+            return
+        saved = True
+        try:
+            record_call(agent_id, context.get_messages())
+        except Exception:
+            logger.exception("Could not save the call log")
+
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):
         logger.info("Client disconnected")
+        save_call()
         bind_node_announcer(None)
         clear_tracked_node()
         bind_call_agent(None)
@@ -116,7 +133,10 @@ async def run_bot(
 
     runner = WorkerRunner(handle_sigint=runner_args.handle_sigint)
     await runner.add_workers(worker)
-    await runner.run()
+    try:
+        await runner.run()
+    finally:
+        save_call()
 
 
 def _send_node(client, node_name: str) -> None:
@@ -130,10 +150,13 @@ def _send_node(client, node_name: str) -> None:
 async def bot(runner_args: RunnerArguments):
     """Entry point invoked by the Pipecat dev runner (and Pipecat Cloud)."""
     transport = await create_transport(runner_args, transport_params)
-    agent_id, builder = load_call_agent(getattr(runner_args, "body", None))
+    agent_id, builder = load_call_agent(
+        getattr(runner_args, "body", None),
+        on_transition=track_active_node,
+    )
     logger.info(f"Loading agent {agent_id or builder.config.name}")
     bind_call_agent(agent_id)
-    await run_bot(transport, runner_args, builder)
+    await run_bot(transport, runner_args, builder, agent_id)
 
 
 if __name__ == "__main__":
