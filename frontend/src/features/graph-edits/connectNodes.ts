@@ -1,6 +1,7 @@
 import type { AgentDocument } from "../editor/agentDocument";
 import { END_ID, START_ID } from "../agent-graph/markers";
 import { NO_FUNCTION } from "./plainFunction";
+import { uniqueName } from "./uniqueName";
 
 export function canConnect(document: AgentDocument, source: string | null, target: string | null): boolean {
     if (!source || !target || source === target || source === END_ID || target === START_ID) {
@@ -41,22 +42,11 @@ export function connectNodes(document: AgentDocument, source: string, target: st
     node.edges = edges;
     const used = edges.map((edge) => edge.function);
     edges.push({
-        function: uniqueName(used, NO_FUNCTION),
+        function: uniqueName(NO_FUNCTION, used),
         description: `Continue to ${target}.`,
         target,
         properties: {},
         required: [],
     });
     return next;
-}
-
-function uniqueName(used: string[], base: string): string {
-    if (!used.includes(base)) {
-        return base;
-    }
-    let index = 2;
-    while (used.includes(`${base}_${index}`)) {
-        index += 1;
-    }
-    return `${base}_${index}`;
 }

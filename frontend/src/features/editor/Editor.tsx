@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bot, Braces, MessagesSquare, Save } from "lucide-react";
 
 import { renameFunction } from "../../api/functions";
 import { AgentList } from "../agent-list/AgentList";
 import { AgentCanvas } from "../agent-graph/AgentCanvas";
-import { CallLog } from "../copilot/CallLog";
+import { CallLog } from "../call-log/CallLog";
+import { useCallLog } from "../call-log/useCallLog";
 import { CopilotChat } from "../copilot/CopilotChat";
 import { previewDocument, previewFunctions } from "../copilot/review";
 import { useCopilot } from "../copilot/useCopilot";
@@ -12,15 +13,18 @@ import { FunctionEditor } from "../function-catalog/FunctionEditor";
 import { FunctionList } from "../function-catalog/FunctionList";
 import type { FunctionTemplate } from "../function-catalog/functionTemplate";
 import { useFunctions } from "../function-catalog/useFunctions";
+import { renameFunctionEdges } from "../graph-edits/editEdge";
+import { uniqueName } from "../graph-edits/uniqueName";
+import { formatTime, HistoryMenu } from "../history/HistoryMenu";
 import { useCallChannel } from "../test-call/callChannel";
 import { TestCall } from "../test-call/TestCall";
 import { TestDataDialog } from "../test-call/TestDataDialog";
 import { testDataReady, testFields } from "../test-call/testFields";
-import { renameFunctionEdges } from "../graph-edits/editEdge";
 import { NodePanel } from "./NodePanel";
 import { useOpenAgent } from "./useOpenAgent";
 
 const FUNCTION_NAME = /^[A-Za-z_][A-Za-z0-9_-]*$/;
+const IMPROVE_REQUEST = "Improve the agent using these flagged calls and the feedback on each one.";
 
 export function Editor() {
     const {
@@ -39,6 +43,9 @@ export function Editor() {
         editDocument,
         renameOpenAgent,
         setPersona,
+        restoreVersion,
+        restoredFrom,
+        saveCount,
     } = useOpenAgent();
     const catalog = useFunctions();
     const { activeNode, callLive } = useCallChannel();
@@ -49,6 +56,7 @@ export function Editor() {
     const [testData, setTestData] = useState<Record<string, string>>({});
     const [picking, setPicking] = useState(false);
     const [callLogOpen, setCallLogOpen] = useState(false);
+    const [openCallId, setOpenCallId] = useState<string | null>(null);
     const [openNode, setOpenNode] = useState<string | null>(null);
     const [renameCarry, setRenameCarry] = useState<{ from: string; to: string } | null>(null);
     const startFromNode = useRef<(nodeName: string) => void>(() => {});
@@ -59,13 +67,14 @@ export function Editor() {
         replaceFunctions: catalog.update,
         editDocument,
     });
-    const shown = useMemo(
-        () => (document && copilot.changes ? previewDocument(document, copilot.changes, catalog.functions) : document),
-        [document, copilot.changes, catalog.functions],
+    const callLog = useCallLog(agentId, callLive);
+    const previewed = useMemo(
+        () => (document && copilot.locked ? previewDocument(document, copilot.pending, catalog.functions) : document),
+        [document, copilot.locked, copilot.pending, catalog.functions],
     );
-    const shownFunctions = useMemo(
-        () => (copilot.changes ? previewFunctions(catalog.functions, copilot.changes) : catalog.functions),
-        [catalog.functions, copilot.changes],
+    const previewedFunctions = useMemo(
+        () => (copilot.locked ? previewFunctions(catalog.functions, copilot.pending) : catalog.functions),
+        [catalog.functions, copilot.locked, copilot.pending],
     );
     const fields = document ? testFields(document, catalog.functions) : [];
     const ready = testDataReady(fields, testData);
@@ -75,10 +84,30 @@ export function Editor() {
         setTestData({});
         setPicking(false);
         setCallLogOpen(false);
+        setOpenCallId(null);
         setOpenNode(null);
         setRenameCarry(null);
         setShowPersona(false);
     }, [agentId]);
+
+    useEffect(() => {
+        function onKey(event: KeyboardEvent) {
+            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+                event.preventDefault();
+                if (dirty && !saving) {
+                    void save();
+                }
+            }
+        }
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [dirty, saving, save]);
+
+    const openCall = useCallback((callId: string) => {
+        setCallLogOpen(true);
+        setOpenCallId(callId);
+    }, []);
+    const closeCallLog = useCallback(() => setCallLogOpen(false), []);
 
     function replaceFunction(previousName: string, next: FunctionTemplate): boolean {
         if (!FUNCTION_NAME.test(next.name)) {
@@ -104,7 +133,7 @@ export function Editor() {
     }
 
     function createFunction() {
-        const name = freshName(catalog.functions.map((fn) => fn.name));
+        const name = uniqueName("new_function", catalog.functions.map((fn) => fn.name));
         catalog.update([
             ...catalog.functions,
             { name, description: "", properties: {}, required: [] },
@@ -119,16 +148,22 @@ export function Editor() {
         }
     }
 
+    const pendingCount = copilot.pending.length;
+
     return (
         <div className="editor">
-            <aside className="agent-list">
-                <div className="menu-switch">
-                    <button type="button" className="pill" aria-pressed={menu === "agents"} onClick={() => setMenu("agents")}>
-                        <Bot className="nav-icon icon-agents" aria-hidden="true" />
+            <aside className="sidebar">
+                <div className="brand">
+                    <span className="brand-mark" aria-hidden="true" />
+                    <span>Agent Studio</span>
+                </div>
+                <div className="segmented" role="tablist">
+                    <button type="button" role="tab" aria-selected={menu === "agents"} onClick={() => setMenu("agents")}>
+                        <Bot aria-hidden="true" />
                         Agents
                     </button>
-                    <button type="button" className="pill" aria-pressed={menu === "functions"} onClick={() => setMenu("functions")}>
-                        <Braces className="nav-icon icon-functions" aria-hidden="true" />
+                    <button type="button" role="tab" aria-selected={menu === "functions"} onClick={() => setMenu("functions")}>
+                        <Braces aria-hidden="true" />
                         Functions
                     </button>
                 </div>
@@ -152,12 +187,28 @@ export function Editor() {
                     />
                 )}
             </aside>
-            <main className="editor-stage">
-                {(error || catalog.error) && <p className="error">{error ?? catalog.error}</p>}
+            <main className="stage">
+                {(error || catalog.error) && (
+                    <p className="toast-error" role="alert">
+                        {error ?? catalog.error}
+                        <button type="button" className="link" onClick={() => setError(null)}>Dismiss</button>
+                    </p>
+                )}
+                {!document && !loading && menu === "agents" ? (
+                    <div className="stage-empty">
+                        <h2>No agent open</h2>
+                        <p className="muted">Create one with New, then ask the copilot to draft it from the client&apos;s guidelines.</p>
+                    </div>
+                ) : null}
                 {document && (
                     <section className={menu === "agents" ? "agent-view" : "agent-view is-hidden"}>
-                        <header className="stage-heading">
-                            <div className="stage-actions" />
+                        <header className="topbar">
+                            <div className="topbar-title">
+                                <h1>{document.name}</h1>
+                                <span className={dirty ? "save-state is-dirty" : "save-state"}>
+                                    {saving ? "Saving…" : dirty ? "Unsaved changes" : "Saved"}
+                                </span>
+                            </div>
                             <TestCall
                                 agentId={agentId}
                                 agent={document}
@@ -170,46 +221,45 @@ export function Editor() {
                                 onPicking={setPicking}
                                 startFromNode={startFromNode}
                             />
-                            <div className="stage-actions stage-end">
+                            <div className="topbar-actions">
                                 <button
                                     type="button"
-                                    className="pill"
+                                    className="btn"
                                     aria-pressed={callLogOpen}
                                     onClick={() => setCallLogOpen((open) => !open)}
                                 >
-                                    <MessagesSquare className="nav-icon" aria-hidden="true" />
+                                    <MessagesSquare aria-hidden="true" />
                                     Call log
+                                    {callLog.checking.length > 0 ? (
+                                        <span className="count is-busy" title="Checking calls">…</span>
+                                    ) : callLog.issues > 0 ? (
+                                        <span className="count is-issue" title={`${callLog.issues} calls with issues`}>{callLog.issues}</span>
+                                    ) : null}
                                 </button>
+                                {agentId ? <HistoryMenu agentId={agentId} saveCount={saveCount} onRestore={(id, at) => void restoreVersion(id, at)} /> : null}
                                 <button
                                     type="button"
-                                    className="pill save-button"
+                                    className="btn btn-primary"
                                     onClick={() => void save()}
-                                    disabled={!dirty || saving || document.nodes.length === 0}
+                                    disabled={!dirty || saving || document.nodes.length === 0 || copilot.locked}
+                                    title={copilot.locked ? "Keep or discard the copilot's changes first" : "Save (⌘S)"}
                                 >
-                                    <Save className="nav-icon" aria-hidden="true" />
+                                    <Save aria-hidden="true" />
                                     {saving ? "Saving…" : "Save"}
                                 </button>
                             </div>
                         </header>
-                        <div className={callLogOpen ? "flow-workspace is-log" : "flow-workspace"}>
-                            {callLogOpen && agentId ? (
-                                <CallLog
-                                    agentId={agentId}
-                                    callLive={callLive}
-                                    sending={copilot.sending}
-                                    onImprove={(calls) => {
-                                        setCallLogOpen(false);
-                                        void copilot.send(
-                                            "Improve the agent using these flagged calls and the feedback on each one.",
-                                            calls,
-                                        );
-                                    }}
-                                />
-                            ) : (
+                        {restoredFrom ? (
+                            <p className="banner banner-info">
+                                Restored the version saved {formatTime(restoredFrom)}. Save to make it the current agent.
+                            </p>
+                        ) : null}
+                        <div className="workspace">
+                            <div className="canvas-area">
                                 <AgentCanvas
                                     key={agentId ?? document.name}
-                                    document={shown ?? document}
-                                    functions={shownFunctions}
+                                    document={previewed ?? document}
+                                    functions={previewedFunctions}
                                     activeNodeName={activeNode}
                                     onChange={copilot.locked ? () => undefined : editDocument}
                                     picking={picking && !callLive && !copilot.locked}
@@ -225,42 +275,72 @@ export function Editor() {
                                     promptOpen={showPersona}
                                     onOpenPrompt={() => setShowPersona((open) => !open)}
                                 />
-                            )}
-                            {!callLogOpen && (
-                                <div className="side-stack">
-                                    <NodePanel
-                                        document={document}
-                                        nodeName={openNode}
-                                        showPersona={showPersona}
-                                        locked={copilot.locked}
-                                        onRenamed={(name) => {
-                                            if (openNode) {
-                                                setRenameCarry({ from: openNode, to: name });
-                                            }
-                                            setOpenNode(name);
-                                        }}
-                                        onChange={editDocument}
-                                        onPersona={setPersona}
-                                    />
-                                    <CopilotChat
-                                        document={document}
-                                        focus={copilot.focus}
-                                        turns={copilot.turns}
-                                        index={copilot.index}
-                                        canAdvance={copilot.canAdvance}
-                                        sending={copilot.sending}
-                                        applying={copilot.applying}
-                                        error={copilot.error}
-                                        onRetreat={copilot.retreat}
-                                        onAdvance={copilot.advance}
-                                        onRemoveFocus={copilot.removeFocus}
-                                        onSend={(message) => void copilot.send(message)}
-                                        onKeep={(ids) => void copilot.keep(ids)}
-                                        onDiscard={copilot.discard}
-                                        onHover={copilot.hover}
-                                    />
-                                </div>
-                            )}
+                                {copilot.locked ? (
+                                    <p className="review-banner" role="status">
+                                        Reviewing {pendingCount} proposed {pendingCount === 1 ? "change" : "changes"}. Keep or discard them to edit the graph again.
+                                    </p>
+                                ) : null}
+                                {(openNode || showPersona) && !callLogOpen ? (
+                                    <div className="floating-panel">
+                                        <NodePanel
+                                            document={document}
+                                            nodeName={openNode}
+                                            showPersona={showPersona}
+                                            locked={copilot.locked}
+                                            onRenamed={(name) => {
+                                                if (openNode) {
+                                                    setRenameCarry({ from: openNode, to: name });
+                                                }
+                                                setOpenNode(name);
+                                            }}
+                                            onChange={editDocument}
+                                            onPersona={setPersona}
+                                            onClose={() => {
+                                                setOpenNode(null);
+                                                setShowPersona(false);
+                                            }}
+                                        />
+                                    </div>
+                                ) : null}
+                                {callLogOpen ? (
+                                    <div className="drawer">
+                                        <CallLog
+                                            log={callLog}
+                                            sending={copilot.sending}
+                                            openCallId={openCallId}
+                                            onOpenCall={setOpenCallId}
+                                            onClose={closeCallLog}
+                                            onFocusStep={(step) => copilot.addFocus([{ kind: "node", label: step }])}
+                                            onImprove={() => {
+                                                setCallLogOpen(false);
+                                                void copilot.send(IMPROVE_REQUEST, callLog.flagged.filter((call) => call.feedback.trim()));
+                                            }}
+                                        />
+                                    </div>
+                                ) : null}
+                            </div>
+                            <CopilotChat
+                                document={document}
+                                focus={copilot.focus}
+                                attachments={copilot.attachments}
+                                reading={copilot.reading}
+                                attachError={copilot.attachError}
+                                requests={copilot.requests}
+                                index={copilot.index}
+                                sending={copilot.sending}
+                                applying={copilot.applying}
+                                onIndex={copilot.setIndex}
+                                onRemoveFocus={copilot.removeFocus}
+                                onAttach={(files) => void copilot.attach(files)}
+                                onDetach={copilot.detach}
+                                onSend={(message) => void copilot.send(message)}
+                                onKeep={(ids) => void copilot.keep(ids)}
+                                onDiscard={copilot.discard}
+                                onHover={copilot.hover}
+                                onReplay={(id) => void copilot.replay(id)}
+                                onSendFailures={copilot.sendReplayFailures}
+                                onOpenCall={openCall}
+                            />
                         </div>
                     </section>
                 )}
@@ -278,16 +358,4 @@ export function Editor() {
             )}
         </div>
     );
-}
-
-function freshName(used: string[]): string {
-    const base = "new_function";
-    if (!used.includes(base)) {
-        return base;
-    }
-    let index = 2;
-    while (used.includes(`${base}_${index}`)) {
-        index += 1;
-    }
-    return `${base}_${index}`;
 }

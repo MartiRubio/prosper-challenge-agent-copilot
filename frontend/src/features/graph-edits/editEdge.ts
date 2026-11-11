@@ -1,6 +1,7 @@
 import type { AgentDocument, AgentEdge } from "../editor/agentDocument";
 import type { FunctionTemplate } from "../function-catalog/functionTemplate";
 import { isPlainFunction, NO_FUNCTION } from "./plainFunction";
+import { uniqueName } from "./uniqueName";
 
 export function functionOptions(
     document: AgentDocument,
@@ -93,20 +94,9 @@ function assignPlain(document: AgentDocument, source: string, edge: AgentEdge): 
     const used = (next.nodes.find((item) => item.name === source)?.edges ?? [])
         .map((item) => item.function)
         .filter((name) => name !== edge.function);
-    updated.function = plainName(used);
+    updated.function = uniqueName(NO_FUNCTION, used);
     updated.description = `Continue to ${updated.target}.`;
     updated.properties = {};
     updated.required = [];
     return next;
-}
-
-function plainName(used: string[]): string {
-    if (!used.includes(NO_FUNCTION)) {
-        return NO_FUNCTION;
-    }
-    let index = 2;
-    while (used.includes(`${NO_FUNCTION}_${index}`)) {
-        index += 1;
-    }
-    return `${NO_FUNCTION}_${index}`;
 }

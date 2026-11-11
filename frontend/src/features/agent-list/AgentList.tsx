@@ -89,6 +89,11 @@ function AgentName({
         setTracked(name);
         setDraft(name);
     }
+    useEffect(() => {
+        if (editing) {
+            skip.current = false;
+        }
+    }, [editing]);
     if (!editing) {
         return <span className="pill agent-name is-quiet">{name}</span>;
     }
@@ -117,8 +122,12 @@ function AgentName({
                     return;
                 }
                 const trimmed = draft.trim();
+                if (!trimmed) {
+                    setDraft(name);
+                    return;
+                }
                 onRename(trimmed);
-                setDraft(trimmed || name);
+                setDraft(trimmed);
             }}
         />
     );

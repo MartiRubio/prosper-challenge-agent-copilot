@@ -4,7 +4,6 @@ type Jump = (nodeName: string, data: Record<string, string>) => void;
 
 let activeNode: string | null = null;
 let callLive = false;
-let sendJump: Jump | null = null;
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -22,16 +21,11 @@ export function publishCallNode(nodeName: string | null) {
 }
 
 export function bindCallJump(jump: Jump | null) {
-    sendJump = jump;
     callLive = jump !== null;
     if (!jump) {
         activeNode = null;
     }
     emit();
-}
-
-export function jumpToNode(nodeName: string, data: Record<string, string>) {
-    sendJump?.(nodeName, data);
 }
 
 export function useCallChannel() {

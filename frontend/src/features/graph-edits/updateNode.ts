@@ -1,5 +1,6 @@
 import type { AgentDocument, AgentNode } from "../editor/agentDocument";
-import { isCallMarker } from "../agent-graph/markers";
+import { isMarker } from "../agent-graph/markers";
+import { uniqueName } from "./uniqueName";
 
 function cloneDocument(document: AgentDocument): AgentDocument {
     return structuredClone(document);
@@ -7,17 +8,6 @@ function cloneDocument(document: AgentDocument): AgentDocument {
 
 function nodeByName(document: AgentDocument, nodeName: string): AgentNode | undefined {
     return document.nodes.find((node) => node.name === nodeName);
-}
-
-function uniqueName(used: string[], base: string): string {
-    if (!used.includes(base)) {
-        return base;
-    }
-    let index = 2;
-    while (used.includes(`${base}-${index}`)) {
-        index += 1;
-    }
-    return `${base}-${index}`;
 }
 
 export function setTaskContent(
@@ -40,7 +30,7 @@ export function setTaskContent(
 
 export function renameNode(document: AgentDocument, from: string, to: string): AgentDocument {
     const name = to.trim();
-    if (!name || name === from || isCallMarker(name) || document.nodes.some((node) => node.name === name)) {
+    if (!name || name === from || isMarker(name) || document.nodes.some((node) => node.name === name)) {
         return document;
     }
     const next = cloneDocument(document);
@@ -64,10 +54,7 @@ export function renameNode(document: AgentDocument, from: string, to: string): A
 
 export function addNode(document: AgentDocument): AgentDocument {
     const next = cloneDocument(document);
-    const name = uniqueName(
-        next.nodes.map((node) => node.name),
-        "step",
-    );
+    const name = uniqueName("step", next.nodes.map((node) => node.name));
     next.nodes.push({
         name,
         task_messages: [{ role: "developer", content: "Say what this step should do." }],

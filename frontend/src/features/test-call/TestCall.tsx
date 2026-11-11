@@ -40,6 +40,7 @@ export function TestCall({
     const [showFields, setShowFields] = useState(false);
     const disconnectRef = useRef<(() => Promise<void>) | null>(null);
     const starting = useRef(false);
+    const generation = useRef(0);
     const live = state === "connected" || state === "ready" || state === "connecting" || state === "authenticating";
 
     useEffect(() => {
@@ -50,6 +51,7 @@ export function TestCall({
         setShowFields(false);
         onPicking(false);
         return () => {
+            generation.current += 1;
             void disconnectRef.current?.();
             disconnectRef.current = null;
         };
@@ -105,20 +107,51 @@ export function TestCall({
             return;
         }
         starting.current = true;
+        const call = generation.current;
+        const current = () => generation.current === call;
         setError(null);
         setPlaybackBlocked(false);
         setShowFields(false);
         onPicking(false);
         setState("connecting");
+        let ended = false;
+        let disconnect: (() => Promise<void>) | null = null;
         try {
-            disconnectRef.current = await startWebRtcCall(
+            disconnect = await startWebRtcCall(
                 agentId,
                 agent,
-                setState,
-                () => setPlaybackBlocked(true),
+                (next) => {
+                    if (current()) {
+                        setState(next);
+                    }
+                },
+                () => {
+                    if (current()) {
+                        setPlaybackBlocked(true);
+                    }
+                },
+                () => {
+                    ended = true;
+                    if (!current() || disconnectRef.current !== disconnect) {
+                        return;
+                    }
+                    disconnectRef.current = null;
+                    setState("idle");
+                    setPlaybackBlocked(false);
+                },
                 nodeName ? { node: nodeName, data: filledTestData(fields, values) } : undefined,
             );
+            if (!current()) {
+                void disconnect();
+                return;
+            }
+            if (!ended) {
+                disconnectRef.current = disconnect;
+            }
         } catch (caught) {
+            if (!current()) {
+                return;
+            }
             disconnectRef.current = null;
             setState("idle");
             setArmed(true);
@@ -199,6 +232,12 @@ function callStatus(
     playbackBlocked: boolean,
 ): string {
     if (error) {
+        if (/permission|notallowed|denied/i.test(error)) {
+            return "Allow the microphone for this page to place a test call.";
+        }
+        if (/fetch|network|failed to/i.test(error)) {
+            return "The voice runner is not reachable. Is `make run` up?";
+        }
         return error;
     }
     if (playbackBlocked) {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 
 import { rewriteTask } from "../../api/copilot";
 import { renameNode, setTaskContent } from "../graph-edits/updateNode";
@@ -13,9 +13,10 @@ type NodePanelProps = {
     onChange: (document: AgentDocument) => void;
     onRenamed: (name: string) => void;
     onPersona: (persona: string) => void;
+    onClose: () => void;
 };
 
-export function NodePanel({ document, nodeName, showPersona, locked, onChange, onRenamed, onPersona }: NodePanelProps) {
+export function NodePanel({ document, nodeName, showPersona, locked, onChange, onRenamed, onPersona, onClose }: NodePanelProps) {
     const node = document.nodes.find((item) => item.name === nodeName) ?? null;
     const [draftName, setDraftName] = useState(node?.name ?? "");
     const [trackedName, setTrackedName] = useState(node?.name);
@@ -30,6 +31,7 @@ export function NodePanel({ document, nodeName, showPersona, locked, onChange, o
         setDraftName(node?.name ?? "");
         setNoteOpen(false);
         setNote("");
+        setRewriteError(null);
     }
 
     useEffect(() => {
@@ -60,7 +62,10 @@ export function NodePanel({ document, nodeName, showPersona, locked, onChange, o
     if (showPersona) {
         return (
             <section className="node-panel" aria-label="General prompt">
-                <p className="eyebrow">General prompt</p>
+                <header className="panel-head">
+                    <p className="eyebrow">General prompt</p>
+                    <button type="button" className="ghost-icon" aria-label="Close" onClick={onClose}><X aria-hidden="true" /></button>
+                </header>
                 <div className="task-field is-plain">
                     <textarea
                         className="prompt-raw"
@@ -74,9 +79,17 @@ export function NodePanel({ document, nodeName, showPersona, locked, onChange, o
         );
     }
 
+    if (!node) {
+        return null;
+    }
+
     return (
         <section className="node-panel" aria-label="Step editor">
-            {node ? (
+            <header className="panel-head">
+                <p className="eyebrow">Step</p>
+                <button type="button" className="ghost-icon" aria-label="Close" onClick={onClose}><X aria-hidden="true" /></button>
+            </header>
+            {(
                 <>
                     <input
                         className="pill-input prompt-name"
@@ -138,9 +151,8 @@ export function NodePanel({ document, nodeName, showPersona, locked, onChange, o
                         </button>
                     </div>
                     {rewriteError ? <p className="error">{rewriteError}</p> : null}
+                    {locked ? <p className="muted">Finish reviewing the copilot&apos;s changes to edit this step.</p> : null}
                 </>
-            ) : (
-                <p className="muted">Click a step to edit what it says.</p>
             )}
         </section>
     );

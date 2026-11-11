@@ -5,8 +5,9 @@ import { isPlainFunction, NO_FUNCTION } from "../graph-edits/plainFunction";
 import { useGraphActions } from "./GraphActions";
 import type { FlowEdgeData } from "./syncFlow";
 
-export function RemovableEdge({
-    id,
+export function FunctionEdge({
+    source,
+    target,
     sourceX,
     sourceY,
     targetX,
@@ -28,10 +29,9 @@ export function RemovableEdge({
         targetPosition,
     });
     const review = edge?.review;
-    const stroke = review === "add" ? "#1f7a4d" : review === "remove" ? "#9a3412" : "#0f6e56";
     const edgeStyle = {
         ...style,
-        stroke,
+        stroke: reviewStroke(review),
         strokeDasharray: review === "remove" ? "6 4" : undefined,
         opacity: review === "remove" ? 0.55 : 1,
     };
@@ -50,7 +50,7 @@ export function RemovableEdge({
                 >
                     <select
                         className="pill-input nodrag nopan"
-                        aria-label={`Function for ${id}`}
+                        aria-label={`Function for arrow from ${source} to ${target}`}
                         value={isPlainFunction(current) ? NO_FUNCTION : current}
                         onPointerDown={(event) => event.stopPropagation()}
                         onChange={(event) => assignFunction(edge.source, current, event.target.value)}
@@ -67,4 +67,17 @@ export function RemovableEdge({
     );
 }
 
-export const edgeTypes = { removable: RemovableEdge };
+function reviewStroke(review: FlowEdgeData["review"]): string {
+    if (review === "add") {
+        return "var(--review-add)";
+    }
+    if (review === "change") {
+        return "var(--review-change)";
+    }
+    if (review === "remove") {
+        return "var(--review-remove)";
+    }
+    return "var(--edge)";
+}
+
+export const edgeTypes = { function: FunctionEdge };

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Background,
     Controls,
@@ -24,9 +24,9 @@ import { addNode, removeNode, renameNode, setTaskContent } from "../graph-edits/
 import { arrangeNodes } from "./arrangeNodes";
 import { handleSides } from "./handleSides";
 import { CanvasTools } from "./CanvasTools";
-import { edgeTypes } from "./RemovableEdge";
+import { edgeTypes } from "./FunctionEdge";
 import { GraphActionsProvider, type GraphActions } from "./GraphActions";
-import { isCallMarker } from "./markers";
+import { isMarker } from "./markers";
 import { nodeTypes } from "./nodeTypes";
 import type { FocusChip } from "../copilot/focus";
 import { flowStructureKey, projectEdges, projectNodes, type FlowEdgeData, type ReviewMarks } from "./syncFlow";
@@ -62,14 +62,29 @@ export function AgentCanvas({
     promptOpen = false,
     onOpenPrompt,
 }: AgentCanvasProps) {
-    const [nodes, setNodes, onNodesChange] = useNodesState<Node>(projectNodes(document, [], null, null));
-    const [edges, setEdges, applyEdgeChanges] = useEdgesState<Edge>(projectEdges(document, []));
+    const [initialNodes] = useState(() => projectNodes(document, [], null, null));
+    const [initialEdges] = useState(() => projectEdges(document, []));
+    const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initialNodes);
+    const [edges, setEdges, applyEdgeChanges] = useEdgesState<Edge>(initialEdges);
     const [arrangeToken, setArrangeToken] = useState(0);
     const [carry, setCarry] = useState<{ from: string; to: string } | null>(null);
     const [pendingSelect, setPendingSelect] = useState<string | null>(null);
     const structure = flowStructureKey(document);
     const reviewKey = JSON.stringify(review ?? null);
     const placedCarry = carry ?? renameCarry;
+    const stepsKey = document.nodes.map((node) => node.name).join("|");
+    const seenSteps = useRef(stepsKey);
+
+    // A step that appears or disappears (a kept or previewed copilot change) can
+    // re-lay the graph, so fit it back into view.
+    useEffect(() => {
+        if (seenSteps.current === stepsKey) {
+            return;
+        }
+        seenSteps.current = stepsKey;
+        const handle = window.setTimeout(() => setArrangeToken((token) => token + 1), 220);
+        return () => window.clearTimeout(handle);
+    }, [stepsKey]);
 
     useEffect(() => {
         setNodes((current) => {
@@ -110,7 +125,7 @@ export function AgentCanvas({
     function onEdgesChange(changes: EdgeChange[]) {
         const blocked = new Set(
             changes.flatMap((change) => {
-                if (change.type !== "remove" || edgeById(edges, change.id)?.removable) {
+                if (change.type !== "remove" || (!locked && edgeById(edges, change.id)?.removable)) {
                     return [];
                 }
                 return [change.id];
@@ -153,7 +168,7 @@ export function AgentCanvas({
             }
         }
         const positions = arrangeNodes(document, sizes);
-        const sides = handleSides(document, positions);
+        const sides = handleSides(positions);
         setNodes((current) => current.map((node) => ({
             ...node,
             position: positions[node.id] ?? node.position,
@@ -176,7 +191,7 @@ export function AgentCanvas({
         if (locked) {
             return;
         }
-        const node = nodes.find((item) => item.selected && !isCallMarker(item.id));
+        const node = nodes.find((item) => item.selected && !isMarker(item.id));
         if (node) {
             onChange(removeNode(document, node.id));
             return;
@@ -188,7 +203,7 @@ export function AgentCanvas({
         }
     }
 
-    const canRemove = nodes.some((node) => node.selected && !isCallMarker(node.id))
+    const canRemove = nodes.some((node) => node.selected && !isMarker(node.id))
         || edges.some((edge) => edge.selected && (edge.data as FlowEdgeData | undefined)?.removable);
 
     return (
@@ -200,7 +215,7 @@ export function AgentCanvas({
                     nodeTypes={nodeTypes}
                     edgeTypes={edgeTypes}
                     onInit={(instance) => {
-                        void instance.fitView({ padding: 0.2 });
+                        void instance.fitView({ padding: 0.2, maxZoom: 1 });
                     }}
                     minZoom={0.35}
                     nodesConnectable={!locked}
@@ -215,10 +230,10 @@ export function AgentCanvas({
                         if (!(target instanceof Element) || target.closest("input, textarea, select, button, .react-flow__handle")) {
                             return;
                         }
-                        if (!isCallMarker(node.id)) {
+                        if (!isMarker(node.id)) {
                             onOpenNode?.(node.id);
                         }
-                        if (!picking || !onPick || isCallMarker(node.id)) {
+                        if (!picking || !onPick || isMarker(node.id)) {
                             return;
                         }
                         onPick(node.id);
@@ -258,7 +273,7 @@ function SendToChat({
     edges: Edge[];
     onFocus: (chips: FocusChip[]) => void;
 }) {
-    const selectedNodes = nodes.filter((node) => node.selected && !isCallMarker(node.id));
+    const selectedNodes = nodes.filter((node) => node.selected && !isMarker(node.id));
     const selectedEdges = edges.filter((edge) => edge.selected && (edge.data as FlowEdgeData | undefined)?.functionName);
     if (selectedNodes.length === 0 && selectedEdges.length === 0) {
         return null;

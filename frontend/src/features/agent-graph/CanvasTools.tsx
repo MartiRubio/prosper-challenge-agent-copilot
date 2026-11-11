@@ -18,7 +18,7 @@ export function CanvasTools({ arrangeToken, canRemove, promptOpen, onArrange, on
         if (arrangeToken === 0) {
             return;
         }
-        void fitView({ padding: 0.2 });
+        void fitView({ padding: 0.15, duration: 450, maxZoom: 1 });
     }, [arrangeToken, fitView]);
     return (
         <div className="canvas-tools">

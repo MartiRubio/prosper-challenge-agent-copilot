@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { createAgent, deleteAgent, getAgent, listAgents, saveAgent } from "../../api/agents";
+import { createAgent, deleteAgent, getAgent, getVersion, listAgents, saveAgent } from "../../api/agents";
 import type { AgentDocument, AgentSummary } from "./agentDocument";
 
 export function useOpenAgent() {
@@ -11,6 +11,9 @@ export function useOpenAgent() {
     const [saving, setSaving] = useState(false);
     const [dirty, setDirty] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [restoredFrom, setRestoredFrom] = useState<string | null>(null);
+    const [saveCount, setSaveCount] = useState(0);
+    const openSerial = useRef(0);
     const documentRef = useRef(document);
     const dirtyRef = useRef(dirty);
     documentRef.current = document;
@@ -21,12 +24,21 @@ export function useOpenAgent() {
             return;
         }
         setError(null);
+        openSerial.current += 1;
+        const serial = openSerial.current;
         try {
             const next = await getAgent(id);
+            if (serial !== openSerial.current) {
+                return;
+            }
             setAgentId(id);
             setDocument(next);
             setDirty(false);
+            setRestoredFrom(null);
         } catch (caught) {
+            if (serial !== openSerial.current) {
+                return;
+            }
             setDocument(null);
             setDirty(false);
             setError(caught instanceof Error ? caught.message : "Could not load the agent.");
@@ -106,6 +118,7 @@ export function useOpenAgent() {
             setAgentId(created.id);
             setDocument(created.agent);
             setDirty(false);
+            setRestoredFrom(null);
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : "Could not create the agent.");
         }
@@ -117,19 +130,43 @@ export function useOpenAgent() {
         }
         setSaving(true);
         setError(null);
+        const sent = document;
         try {
-            const saved = await saveAgent(agentId, document);
-            setDocument(saved);
+            const saved = await saveAgent(agentId, sent);
             setAgents((current) => current.map((agent) => (
                 agent.id === agentId ? { ...agent, name: saved.name } : agent
             )));
-            setDirty(false);
+            // Edits made while the request was in flight stay on screen and stay unsaved.
+            if (documentRef.current === sent) {
+                setDocument(saved);
+                setDirty(false);
+            }
+            setRestoredFrom(null);
+            setSaveCount((count) => count + 1);
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : "Could not save the agent.");
         } finally {
             setSaving(false);
         }
     }, [agentId, document]);
+
+    const restoreVersion = useCallback(async (versionId: string, savedAt: string) => {
+        if (!agentId) {
+            return;
+        }
+        if (dirtyRef.current && !window.confirm("Replace your unsaved changes with this version?")) {
+            return;
+        }
+        setError(null);
+        try {
+            const version = await getVersion(agentId, versionId);
+            setDocument(version);
+            setDirty(true);
+            setRestoredFrom(savedAt);
+        } catch (caught) {
+            setError(caught instanceof Error ? caught.message : "Could not load that version.");
+        }
+    }, [agentId]);
 
     useEffect(() => {
         let cancelled = false;
@@ -179,5 +216,8 @@ export function useOpenAgent() {
         editDocument,
         renameOpenAgent,
         setPersona,
+        restoreVersion,
+        restoredFrom,
+        saveCount,
     };
 }

@@ -12,7 +12,7 @@ export function arrangeNodes(
 ): Record<string, NodePosition> {
     const graph = new Graph({ multigraph: true });
     graph.setDefaultEdgeLabel(() => ({}));
-    graph.setGraph({ rankdir: "TB", nodesep: 160, ranksep: 56, marginx: 24, marginy: 24 });
+    graph.setGraph({ rankdir: "TB", nodesep: 90, ranksep: 56, marginx: 24, marginy: 24 });
     for (const id of nodeIds(document)) {
         const measured = sizes[id];
         const fallback = id === START_ID || id === END_ID ? MARKER_SIZE : STEP_SIZE;

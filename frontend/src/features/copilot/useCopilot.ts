@@ -1,11 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { applyChanges, editAgent, type FlaggedCall } from "../../api/copilot";
+import {
+    applyOpsOnServer,
+    proposeChanges,
+    readAttachment,
+    replayCalls,
+    type Attachment,
+    type CoverageRule,
+    type FlaggedCall,
+    type ReplayResult,
+} from "../../api/copilot";
 import type { AgentDocument } from "../editor/agentDocument";
 import type { FunctionTemplate } from "../function-catalog/functionTemplate";
-import { reviewMarks, touchedNodes } from "./review";
 import type { FocusChip } from "./focus";
-import type { ReviewChange } from "./patch";
+import { reviewMarks, touchedNodes } from "./review";
+import type { ReviewChange } from "./reviewChange";
 
 type UseCopilotArgs = {
     agentId: string | null;
@@ -15,52 +24,66 @@ type UseCopilotArgs = {
     editDocument: (next: AgentDocument) => void;
 };
 
-export type CopilotTurn = {
+export type ReplayState =
+    | { status: "running" }
+    | { status: "done"; results: ReplayResult[] }
+    | { status: "error"; error: string };
+
+/** One request to the copilot and what came back. */
+export type CopilotRequest = {
     id: string;
     message: string;
     focus: FocusChip[];
+    calls: FlaggedCall[];
+    attachments: string[];
+    /** The agent as it was when the request was sent: the "before" of a replay. */
+    before: AgentDocument;
     summary: string;
     changes: ReviewChange[] | null;
+    coverage: CoverageRule[];
+    warnings: string[];
     error: string | null;
+    replay: ReplayState | null;
 };
 
-let turnSerial = 0;
-
-function blankTurn(): CopilotTurn {
-    turnSerial += 1;
-    return {
-        id: `t${turnSerial}`,
-        message: "",
-        focus: [],
-        summary: "",
-        changes: null,
-        error: null,
-    };
-}
+let requestSerial = 0;
 
 export function useCopilot({ agentId, document, functions, replaceFunctions, editDocument }: UseCopilotArgs) {
     const [focus, setFocus] = useState<FocusChip[]>([]);
-    const [turns, setTurns] = useState<CopilotTurn[]>(() => [blankTurn()]);
+    const [attachments, setAttachments] = useState<Attachment[]>([]);
+    const [reading, setReading] = useState(false);
+    const [attachError, setAttachError] = useState<string | null>(null);
+    const [requests, setRequests] = useState<CopilotRequest[]>([]);
     const [index, setIndex] = useState(0);
     const [sending, setSending] = useState(false);
-    const [hot, setHot] = useState<string[]>([]);
     const [applying, setApplying] = useState(false);
+    const [hot, setHot] = useState<string[]>([]);
+    const agentRef = useRef(agentId);
+    agentRef.current = agentId;
 
     useEffect(() => {
         setFocus([]);
-        setTurns([blankTurn()]);
+        setAttachments([]);
+        setAttachError(null);
+        setRequests([]);
         setIndex(0);
         setHot([]);
+        setSending(false);
+        setApplying(false);
     }, [agentId]);
 
-    const visible = turns[index] ?? turns[0];
-    const changes = visible?.changes ?? null;
-    const marks = useMemo(
-        () => (changes?.some((change) => change.status === "pending") ? reviewMarks(changes, hot) : null),
-        [changes, hot],
+    const visible = requests[index] ?? null;
+    // Every open card across requests is previewed and locks the canvas, not only the one on screen.
+    const pending = useMemo(
+        () => requests.flatMap((request) => (request.changes ?? []).filter((change) => change.status === "pending")),
+        [requests],
     );
-    const locked = turns.some((turn) => turn.changes?.some((change) => change.status === "pending"));
-    const canAdvance = !sending && (index < turns.length - 1 || Boolean(turns[turns.length - 1]?.message));
+    const locked = pending.length > 0;
+    const marks = useMemo(() => (locked ? reviewMarks(pending, hot) : null), [locked, pending, hot]);
+
+    function updateRequest(id: string, patch: (request: CopilotRequest) => CopilotRequest) {
+        setRequests((current) => current.map((request) => (request.id === id ? patch(request) : request)));
+    }
 
     function addFocus(chips: FocusChip[]) {
         setFocus((current) => {
@@ -78,26 +101,27 @@ export function useCopilot({ agentId, document, functions, replaceFunctions, edi
         setFocus((current) => current.filter((item) => item.kind !== chip.kind || item.label !== chip.label));
     }
 
-    function retreat() {
-        setIndex((current) => Math.max(0, current - 1));
-        setHot([]);
+    async function attach(files: FileList | File[]) {
+        setAttachError(null);
+        setReading(true);
+        const owner = agentRef.current;
+        try {
+            for (const file of Array.from(files)) {
+                const read = await readAttachment(file);
+                if (agentRef.current !== owner) {
+                    return;
+                }
+                setAttachments((current) => [...current.filter((item) => item.name !== read.name), read]);
+            }
+        } catch (caught) {
+            setAttachError(caught instanceof Error ? caught.message : "That file could not be read.");
+        } finally {
+            setReading(false);
+        }
     }
 
-    function advance() {
-        if (sending) {
-            return;
-        }
-        setHot([]);
-        if (index < turns.length - 1) {
-            setIndex(index + 1);
-            return;
-        }
-        const last = turns[turns.length - 1];
-        if (!last?.message) {
-            return;
-        }
-        setTurns([...turns, blankTurn()]);
-        setIndex(turns.length);
+    function detach(name: string) {
+        setAttachments((current) => current.filter((item) => item.name !== name));
     }
 
     async function send(message: string, calls: FlaggedCall[] = []) {
@@ -105,111 +129,153 @@ export function useCopilot({ agentId, document, functions, replaceFunctions, edi
         if (!document || !agentId || !text || sending) {
             return;
         }
-        const owned = calls.filter((call) => call.agent_id === agentId);
-        const sentFocus = focus;
-        const last = turns[turns.length - 1] ?? blankTurn();
-        const target = last.message ? blankTurn() : last;
-        const prepared = (last.message ? [...turns, target] : turns).map((turn) => (
-            turn.id === target.id
-                ? { ...turn, message: text, focus: sentFocus, summary: "", changes: null, error: null }
-                : turn
-        ));
-        setTurns(prepared);
-        setIndex(prepared.findIndex((turn) => turn.id === target.id));
+        requestSerial += 1;
+        const request: CopilotRequest = {
+            id: `r${requestSerial}`,
+            message: text,
+            focus,
+            calls: calls.filter((call) => call.agent_id === agentId),
+            attachments: attachments.map((item) => item.name),
+            before: document,
+            summary: "",
+            changes: null,
+            coverage: [],
+            warnings: [],
+            error: null,
+            replay: null,
+        };
+        const sentAttachments = attachments;
+        setRequests((current) => [...current, request]);
+        setIndex(requests.length);
+        // Attachments stay attached: follow-up requests usually need the same guidelines.
         setFocus([]);
         setSending(true);
         setHot([]);
         try {
-            const result = await editAgent({
+            const result = await proposeChanges({
                 agentId,
                 agent: document,
                 catalog: functions,
                 message: text,
-                focus: sentFocus,
-                calls: owned,
+                focus: request.focus,
+                calls: request.calls,
+                attachments: sentAttachments,
             });
-            setTurns((current) => current.map((turn) => (
-                turn.id === target.id
-                    ? {
-                        ...turn,
-                        summary: result.summary,
-                        changes: result.changes.map((change) => ({ ...change, status: "pending" as const })),
-                        error: null,
-                    }
-                    : turn
-            )));
+            if (agentRef.current !== agentId) {
+                return;
+            }
+            updateRequest(request.id, (current) => ({
+                ...current,
+                summary: result.summary,
+                coverage: result.coverage ?? [],
+                warnings: result.warnings ?? [],
+                // The server numbers changes c1, c2… on every request; the request id keeps them apart.
+                changes: result.changes.map((change) => ({ ...change, id: `${request.id}:${change.id}`, status: "pending" })),
+            }));
         } catch (caught) {
-            const messageText = caught instanceof Error ? caught.message : "The copilot could not read that.";
-            setTurns((current) => current.map((turn) => (
-                turn.id === target.id ? { ...turn, error: messageText } : turn
-            )));
+            updateRequest(request.id, (current) => ({
+                ...current,
+                error: caught instanceof Error ? caught.message : "The copilot could not read that.",
+            }));
         } finally {
             setSending(false);
         }
     }
 
     async function keep(ids: string[]) {
-        if (!document || applying) {
+        if (!document || !agentId || applying) {
             return;
         }
-        const turn = turns.find((item) => item.changes?.some((change) => ids.includes(change.id) && change.status === "pending"));
-        if (!turn?.changes) {
-            return;
-        }
-        const chosen = turn.changes.filter((change) => ids.includes(change.id) && change.status === "pending");
+        const chosen = pending.filter((change) => ids.includes(change.id));
         const ops = chosen.flatMap((change) => change.ops);
-        if (ops.length === 0) {
+        const owner = requests.find((request) => request.changes?.some((change) => ids.includes(change.id)));
+        if (!owner || ops.length === 0) {
+            discard(chosen.filter((change) => change.ops.length === 0).map((change) => change.id));
             return;
         }
         setApplying(true);
         try {
-            const result = await applyChanges(document, ops, functions);
+            const result = await applyOpsOnServer(document, ops, functions);
+            if (agentRef.current !== agentId) {
+                return;
+            }
             editDocument(result.agent);
             if (JSON.stringify(result.functions) !== JSON.stringify(functions)) {
                 replaceFunctions(result.functions);
             }
-            setTurns((current) => current.map((item) => (
-                item.id === turn.id
-                    ? {
-                        ...item,
-                        error: null,
-                        changes: item.changes?.map((change) => (
-                            ids.includes(change.id) && change.status === "pending"
-                                ? { ...change, status: "kept" as const }
-                                : change
-                        )) ?? null,
-                    }
-                    : item
-            )));
-            setHot([]);
+            setStatus(ids, "kept", owner.id);
         } catch (caught) {
-            const messageText = caught instanceof Error ? caught.message : "That change could not be applied.";
-            setTurns((current) => current.map((item) => (
-                item.id === turn.id ? { ...item, error: messageText } : item
-            )));
+            updateRequest(owner.id, (current) => ({
+                ...current,
+                error: caught instanceof Error ? caught.message : "That change could not be applied.",
+            }));
         } finally {
             setApplying(false);
         }
     }
 
     function discard(ids: string[]) {
-        setTurns((current) => current.map((turn) => ({
-            ...turn,
-            changes: turn.changes?.map((change) => (
-                ids.includes(change.id) && change.status === "pending"
-                    ? { ...change, status: "discarded" as const }
-                    : change
+        if (ids.length > 0) {
+            setStatus(ids, "discarded");
+        }
+    }
+
+    function setStatus(ids: string[], status: "kept" | "discarded", clearErrorOn?: string) {
+        setRequests((current) => current.map((request) => ({
+            ...request,
+            error: request.id === clearErrorOn ? null : request.error,
+            changes: request.changes?.map((change) => (
+                ids.includes(change.id) && change.status === "pending" ? { ...change, status } : change
             )) ?? null,
         })));
         setHot([]);
     }
 
-    function hover(id: string | null) {
-        if (!id || !changes) {
-            setHot([]);
+    /** Call the flagged calls again, as a simulated caller, on the agent before and after this request. */
+    async function replay(requestId: string) {
+        const request = requests.find((item) => item.id === requestId);
+        if (!request || !document || request.calls.length === 0) {
             return;
         }
-        const change = changes.find((item) => item.id === id);
+        updateRequest(requestId, (current) => ({ ...current, replay: { status: "running" } }));
+        try {
+            const results = await replayCalls({
+                before: request.before,
+                after: document,
+                calls: request.calls,
+                catalog: functions,
+            });
+            updateRequest(requestId, (current) => ({ ...current, replay: { status: "done", results } }));
+        } catch (caught) {
+            updateRequest(requestId, (current) => ({
+                ...current,
+                replay: { status: "error", error: caught instanceof Error ? caught.message : "The replay could not run." },
+            }));
+        }
+    }
+
+    /** Hand the replays that still fail back to the copilot as new flagged calls. */
+    function sendReplayFailures(requestId: string) {
+        const request = requests.find((item) => item.id === requestId);
+        if (!request || request.replay?.status !== "done" || !agentId) {
+            return;
+        }
+        const failing = request.replay.results.filter((result) => !result.after.passed);
+        const calls: FlaggedCall[] = failing.map((result) => {
+            const original = request.calls.find((call) => call.id === result.call_id);
+            return {
+                id: `replay-${result.call_id}`,
+                agent_id: agentId,
+                title: `Replay of ${result.title}`,
+                feedback: `Still failing after the last change: ${result.after.reason} Original feedback: ${original?.feedback ?? ""}`,
+                turns: result.after.transcript,
+            };
+        });
+        void send("The last change did not hold when the flagged calls were replayed. Fix what still fails.", calls);
+    }
+
+    function hover(id: string | null) {
+        const change = id ? pending.find((item) => item.id === id) : null;
         setHot(change ? touchedNodes(change) : []);
     }
 
@@ -217,21 +283,25 @@ export function useCopilot({ agentId, document, functions, replaceFunctions, edi
         focus,
         addFocus,
         removeFocus,
-        turns,
+        attachments,
+        attach,
+        detach,
+        reading,
+        attachError,
+        requests,
         index,
-        retreat,
-        advance,
-        canAdvance,
+        setIndex,
+        visible,
         sending,
         applying,
-        summary: visible?.summary ?? "",
-        changes,
+        pending,
         marks,
         locked,
-        error: visible?.error ?? null,
         send,
         keep,
         discard,
+        replay,
+        sendReplayFailures,
         hover,
     };
 }

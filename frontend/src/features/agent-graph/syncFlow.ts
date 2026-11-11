@@ -16,7 +16,7 @@ export type ReviewMarks = {
     hot: string[];
 };
 
-const markerEnd = { type: MarkerType.ArrowClosed, color: "#0f6e56" };
+const markerEnd = { type: MarkerType.ArrowClosed, color: "var(--edge)" };
 
 export function flowStructureKey(document: AgentDocument): string {
     const nodes = document.nodes.map((node) => {
@@ -34,7 +34,7 @@ export function projectNodes(
     review: ReviewMarks | null = null,
 ): Node[] {
     const positions = placedPositions(document, current, carry);
-    const sides = handleSides(document, positions);
+    const sides = handleSides(positions);
     const selected = new Set(current.filter((node) => node.selected).map((node) => node.id));
     if (carry && selected.has(carry.from)) {
         selected.delete(carry.from);
@@ -87,14 +87,27 @@ function placedPositions(
     current: Node[],
     carry: { from: string; to: string } | null,
 ): Record<string, NodePosition> {
-    const positions: Record<string, NodePosition> = { ...arrangeNodes(document) };
+    const fresh = arrangeNodes(document);
+    const positions: Record<string, NodePosition> = { ...fresh };
     for (const node of current) {
         positions[node.id] = node.position;
+    }
+    // A new step goes where a fresh layout puts it. If that spot is already
+    // taken by a step that was moved or laid out earlier, lay everything out again.
+    const known = new Set(current.map((node) => node.id));
+    const added = Object.keys(fresh).filter((id) => !known.has(id));
+    const collides = added.some((id) => current.some((node) => overlaps(fresh[id], node.position)));
+    if (collides) {
+        return { ...fresh };
     }
     if (carry && positions[carry.from]) {
         positions[carry.to] = positions[carry.from];
     }
     return positions;
+}
+
+function overlaps(a: NodePosition, b: NodePosition): boolean {
+    return Math.abs(a.x - b.x) < 200 && Math.abs(a.y - b.y) < 70;
 }
 
 function flowNode(
@@ -139,11 +152,11 @@ function flowEdge(
         source,
         target,
         sourceHandle,
-        type: "removable",
+        type: "function",
         data,
         selected: selected.has(id),
         markerEnd,
-        style: { stroke: "#0f6e56", strokeWidth: 1.6 },
+        style: { stroke: "var(--edge)", strokeWidth: 1.6 },
     };
 }
 

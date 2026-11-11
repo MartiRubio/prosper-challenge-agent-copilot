@@ -12,13 +12,18 @@ export type PatchOp =
     | { op: "set_initial"; node: string }
     | { op: "set_end"; node: string; end: boolean };
 
+/** Where a proposed change comes from: a call line, a guideline sentence, or the request itself. */
+export type Evidence = {
+    source: "call" | "attachment" | "request";
+    ref: string;
+    quote: string;
+    verified: boolean;
+};
+
 export type ProposedChange = {
     id: string;
     title: string;
     detail: string;
+    evidence?: Evidence[];
     ops: PatchOp[];
-};
-
-export type ReviewChange = ProposedChange & {
-    status: "pending" | "kept" | "discarded";
 };

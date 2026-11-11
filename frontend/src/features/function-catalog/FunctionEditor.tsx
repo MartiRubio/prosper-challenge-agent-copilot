@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type { EdgeField } from "../editor/agentDocument";
+import { uniqueName } from "../graph-edits/uniqueName";
 import type { FunctionTemplate } from "./functionTemplate";
 
 type FunctionEditorProps = {
@@ -99,14 +100,18 @@ function FieldRow({
     name: string;
     field: EdgeField;
     required: boolean;
-    onChange: (name: string, field: EdgeField, required: boolean) => void;
+    onChange: (name: string, field: EdgeField, required: boolean) => boolean;
     onRemove: () => void;
 }) {
     const [draft, setDraft] = useState(name);
+    const [choiceDraft, setChoiceDraft] = useState(choiceText(field));
+    const [nameError, setNameError] = useState<string | null>(null);
     const [tracked, setTracked] = useState(name);
     if (name !== tracked) {
         setTracked(name);
         setDraft(name);
+        setChoiceDraft(choiceText(field));
+        setNameError(null);
     }
     return (
         <article className="function-field">
@@ -115,14 +120,20 @@ function FieldRow({
                 <input
                     className="pill-input"
                     value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
+                    onChange={(event) => {
+                        setDraft(event.target.value);
+                        setNameError(null);
+                    }}
                     onBlur={() => {
                         const trimmed = draft.trim();
                         if (!trimmed) {
                             setDraft(name);
                             return;
                         }
-                        onChange(trimmed, field, required);
+                        if (!onChange(trimmed, field, required)) {
+                            setNameError(`There is already a field named "${trimmed}".`);
+                            setDraft(name);
+                        }
                     }}
                 />
             </label>
@@ -138,9 +149,13 @@ function FieldRow({
                 Choices
                 <input
                     className="pill-input"
-                    value={(field.enum ?? []).join(", ")}
+                    value={choiceDraft}
                     placeholder="Optional, comma separated"
-                    onChange={(event) => onChange(name, { ...field, enum: choices(event.target.value) }, required)}
+                    onChange={(event) => {
+                        setChoiceDraft(event.target.value);
+                        onChange(name, { ...field, enum: choices(event.target.value) }, required);
+                    }}
+                    onBlur={() => setChoiceDraft(choiceText(field))}
                 />
             </label>
             <label className="check">
@@ -154,6 +169,7 @@ function FieldRow({
             <button type="button" className="pill danger" onClick={onRemove}>
                 Remove
             </button>
+            {nameError ? <p className="error">{nameError}</p> : null}
         </article>
     );
 }
@@ -162,7 +178,7 @@ function addField(
     fn: FunctionTemplate,
     setFields: (properties: Record<string, EdgeField>, required: string[]) => void,
 ) {
-    const name = uniqueField(Object.keys(fn.properties), "field");
+    const name = uniqueName("field", Object.keys(fn.properties));
     setFields({ ...fn.properties, [name]: { type: "string", description: "" } }, fn.required);
 }
 
@@ -183,9 +199,9 @@ function replaceField(
     field: EdgeField,
     required: boolean,
     setFields: (properties: Record<string, EdgeField>, required: string[]) => void,
-) {
+): boolean {
     if (nextName !== previous && fn.properties[nextName]) {
-        return;
+        return false;
     }
     const properties: Record<string, EdgeField> = {};
     for (const [key, value] of Object.entries(fn.properties)) {
@@ -196,6 +212,7 @@ function replaceField(
         requiredNames.push(nextName);
     }
     setFields(properties, requiredNames);
+    return true;
 }
 
 function choices(value: string): string[] | undefined {
@@ -203,13 +220,6 @@ function choices(value: string): string[] | undefined {
     return items.length > 0 ? items : undefined;
 }
 
-function uniqueField(used: string[], base: string): string {
-    if (!used.includes(base)) {
-        return base;
-    }
-    let index = 2;
-    while (used.includes(`${base}_${index}`)) {
-        index += 1;
-    }
-    return `${base}_${index}`;
+function choiceText(field: EdgeField): string {
+    return (field.enum ?? []).join(", ");
 }

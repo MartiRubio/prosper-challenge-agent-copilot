@@ -1,62 +1,42 @@
 import type { AgentDocument, AgentSummary } from "../features/editor/agentDocument";
+import { jsonBody, requestJson } from "./http";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
+export type AgentVersion = {
+    id: string;
+    saved_at: string;
+    name: string;
+    steps: number;
+};
 
-export async function listAgents(): Promise<AgentSummary[]> {
-    const response = await fetch(`${API_URL}/agents`);
-    if (!response.ok) {
-        throw new Error("Could not list agents.");
-    }
-    return response.json() as Promise<AgentSummary[]>;
+const agentPath = (agentId: string) => `/agents/${encodeURIComponent(agentId)}`;
+
+export function listAgents(): Promise<AgentSummary[]> {
+    return requestJson("/agents", "Could not list agents.");
 }
 
-export async function getAgent(agentId: string): Promise<AgentDocument> {
-    const response = await fetch(`${API_URL}/agents/${encodeURIComponent(agentId)}`);
-    if (!response.ok) {
-        throw new Error(`Could not load agent ${agentId}.`);
-    }
-    return response.json() as Promise<AgentDocument>;
+export function getAgent(agentId: string): Promise<AgentDocument> {
+    return requestJson(agentPath(agentId), `Could not load agent ${agentId}.`);
 }
 
-export async function createAgent(name?: string): Promise<{ id: string; agent: AgentDocument }> {
-    const response = await fetch(`${API_URL}/agents`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(name ? { name } : {}),
-    });
-    if (!response.ok) {
-        throw new Error("Could not create the agent.");
-    }
-    return response.json() as Promise<{ id: string; agent: AgentDocument }>;
+export function createAgent(name?: string): Promise<{ id: string; agent: AgentDocument }> {
+    return requestJson("/agents", "Could not create the agent.", jsonBody("POST", name ? { name } : {}));
 }
 
 export async function deleteAgent(agentId: string): Promise<void> {
-    const response = await fetch(`${API_URL}/agents/${encodeURIComponent(agentId)}`, { method: "DELETE" });
-    if (!response.ok) {
-        throw new Error("Could not delete the agent.");
-    }
+    await requestJson(agentPath(agentId), "Could not delete the agent.", { method: "DELETE" });
 }
 
-export async function saveAgent(agentId: string, document: AgentDocument): Promise<AgentDocument> {
-    const response = await fetch(`${API_URL}/agents/${encodeURIComponent(agentId)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(document),
-    });
-    if (!response.ok) {
-        throw new Error(await errorDetail(response));
-    }
-    return response.json() as Promise<AgentDocument>;
+export function saveAgent(agentId: string, document: AgentDocument): Promise<AgentDocument> {
+    return requestJson(agentPath(agentId), "Could not save the agent.", jsonBody("PUT", document));
 }
 
-async function errorDetail(response: Response): Promise<string> {
-    try {
-        const body = (await response.json()) as { detail?: unknown };
-        if (typeof body.detail === "string" && body.detail) {
-            return body.detail;
-        }
-    } catch {
-        // The body was not JSON.
-    }
-    return "Could not save the agent.";
+export function listVersions(agentId: string): Promise<AgentVersion[]> {
+    return requestJson(`${agentPath(agentId)}/versions`, "Could not load the saved versions.");
+}
+
+export function getVersion(agentId: string, versionId: string): Promise<AgentDocument> {
+    return requestJson(
+        `${agentPath(agentId)}/versions/${encodeURIComponent(versionId)}`,
+        "Could not load that version.",
+    );
 }

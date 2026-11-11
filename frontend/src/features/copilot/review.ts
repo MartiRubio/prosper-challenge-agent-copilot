@@ -2,7 +2,8 @@ import type { AgentDocument } from "../editor/agentDocument";
 import type { FunctionTemplate } from "../function-catalog/functionTemplate";
 import type { ReviewMarks } from "../agent-graph/syncFlow";
 import { applyOps } from "./applyOps";
-import type { PatchOp, ReviewChange } from "./patch";
+import type { PatchOp } from "./patch";
+import type { ReviewChange } from "./reviewChange";
 
 export function pendingOps(changes: ReviewChange[]): PatchOp[] {
     return changes.filter((change) => change.status === "pending").flatMap((change) => change.ops);
@@ -60,7 +61,13 @@ export function reviewMarks(changes: ReviewChange[], hot: string[]): ReviewMarks
     return { nodes, edges, hot };
 }
 
-export function blockReason(change: ReviewChange, document: AgentDocument, changes: ReviewChange[]): string | null {
+/** Why a card cannot be kept yet. Cards in `batch` are kept together, so their new steps count as present. */
+export function blockReason(
+    change: ReviewChange,
+    document: AgentDocument,
+    changes: ReviewChange[],
+    batch: ReadonlySet<string> = new Set(),
+): string | null {
     if (change.status !== "pending") {
         return null;
     }
@@ -83,7 +90,9 @@ export function blockReason(change: ReviewChange, document: AgentDocument, chang
         }
     }
     const createdHere = new Set(
-        change.ops.flatMap((op) => (op.op === "add_node" ? [op.name] : [])),
+        changes
+            .filter((other) => other.id === change.id || (batch.has(other.id) && other.status === "pending"))
+            .flatMap((other) => other.ops.flatMap((op) => (op.op === "add_node" ? [op.name] : []))),
     );
     for (const op of change.ops) {
         const target = op.op === "add_edge" || op.op === "set_edge"
@@ -119,22 +128,12 @@ export function touchedNodes(change: ReviewChange): string[] {
         }
         if (op.op === "add_edge" || op.op === "remove_edge" || op.op === "set_edge") {
             names.add(op.source);
-            if ("target" in op && op.target) {
+            if (op.op !== "remove_edge" && op.target) {
                 names.add(op.target);
             }
         }
     }
     return [...names];
-}
-
-export function newFunctions(change: ReviewChange): { name: string; fields: string }[] {
-    return change.ops.flatMap((op) => {
-        if (op.op !== "add_function") {
-            return [];
-        }
-        const fields = Object.keys(op.properties ?? {});
-        return [{ name: op.name, fields: fields.join(", ") }];
-    });
 }
 
 export function previewFunctions(
@@ -164,17 +163,4 @@ export function previewFunctions(
         }
     }
     return next;
-}
-
-export function taskPairs(document: AgentDocument, change: ReviewChange): { current: string; next: string }[] {
-    return change.ops.flatMap((op) => {
-        if (op.op !== "set_task") {
-            return [];
-        }
-        const node = document.nodes.find((item) => item.name === op.node);
-        return [{
-            current: node?.task_messages?.[0]?.content ?? "",
-            next: op.content,
-        }];
-    });
 }
