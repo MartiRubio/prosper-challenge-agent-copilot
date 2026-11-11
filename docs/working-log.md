@@ -16,7 +16,7 @@ Phase 2, later, is the part Prosper said they care about. The copilot should not
 
 We are doing Phase 1 first: the graph editor and a test call from that UI. Commits stay single-purpose so the history is reviewable. Files stay single-concept. The filename is the job. New backend code is application, infrastructure, and HTTP interfaces. The Pipecat schema and `bot.py` stay put.
 
-The review surface is `solution.md`, `docs/decisions/`, `docs/demo-script.md`, this log, and `docs/next-steps.md`.
+The review surface is `solution.md`, `docs/decisions/`, `docs/demo-script.md`, and this log.
 
 ## 2026-11-08 — Phase 1 is in the tree
 
@@ -48,7 +48,7 @@ Test data is the fields those functions collect. Once they are filled, clicking 
 
 ## 2026-11-08 — Functions are shared
 
-Functions were whatever an edge already used, so a new agent had no way to add one. They now live in `backend/functions.json`. Agents and Functions are two menus in the left bar. Every agent picks from that list. A function's fields are the test data. The token colors draw inside the prompt editor. An agent can be deleted from the list.
+Functions were whatever an edge already used, so a new agent had no way to add one. They now live in `backend/functions.json` (later moved to `backend/data/functions.json`). Agents and Functions are two menus in the left bar. Every agent picks from that list. A function's fields are the test data. The token colors draw inside the prompt editor. An agent can be deleted from the list.
 
 ## 2026-11-08 — The graph reads left to right
 

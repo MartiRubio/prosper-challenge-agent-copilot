@@ -88,8 +88,8 @@ The model's behaviour is tested differently, by measuring it: guideline intake a
 
 ## Known limits
 
-- Replay and simulated calls are text, not voice, and the same model plays the caller, the agent and the checker, so it can share blind spots. The call check judges from the caller’s side and names emergencies explicitly for that reason.
-- Replay is text, not voice. It tests routing and wording, not speech recognition errors or barge-in. The live test call remains the final check.
+- Replay and simulated calls are text, not voice. They test routing and wording, not speech recognition errors or barge-in, so the live test call remains the final check.
+- The same model plays the caller, the agent and the checker, so it can share blind spots. The call check judges from the caller’s side and names emergencies explicitly for that reason.
 - One model, gpt-4o, for all text generation (`domain/text_model.py`), with temperature 0 for checks and judging. Replay runs the agent side on the agent’s own model, as a live call does. Proposals still vary between runs; validation and retries bound that variance, they don't remove it.
 - Test calls read the function catalog on disk. A function the copilot added is heard with its fields only after Save.
 - Files instead of a database, and a single editor at a time.
