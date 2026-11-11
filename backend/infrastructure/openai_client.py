@@ -12,17 +12,17 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
 
-COPILOT_MODEL = "gpt-4o"
+from domain.text_model import TEXT_MODEL
 
 _BACKEND = Path(__file__).resolve().parent.parent
 _LOG_DIR = _BACKEND / "logs" / "llm"
 _client: OpenAI | None = None
 
 
-def complete_json(system: str, user: str, temperature: float = 0.2) -> dict:
+def complete_json(system: str, user: str, temperature: float = 0.2, model: str = TEXT_MODEL) -> dict:
     """One JSON object back from the model."""
     response = _openai().chat.completions.create(
-        model=COPILOT_MODEL,
+        model=model,
         temperature=temperature,
         response_format={"type": "json_object"},
         messages=[
@@ -31,7 +31,7 @@ def complete_json(system: str, user: str, temperature: float = 0.2) -> dict:
         ],
     )
     raw = response.choices[0].message.content or "{}"
-    _write_log({"system": system, "user": user, "answer": raw})
+    _write_log({"model": model, "system": system, "user": user, "answer": raw})
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as error:
@@ -41,9 +41,14 @@ def complete_json(system: str, user: str, temperature: float = 0.2) -> dict:
     return data
 
 
-def complete_chat(messages: list[dict], tools: list[dict] | None = None, temperature: float = 0.3):
+def complete_chat(
+    messages: list[dict],
+    tools: list[dict] | None = None,
+    temperature: float = 0.3,
+    model: str = TEXT_MODEL,
+):
     """One chat turn, optionally with tools. Returns the assistant message."""
-    kwargs: dict = {"model": COPILOT_MODEL, "temperature": temperature, "messages": messages}
+    kwargs: dict = {"model": model, "temperature": temperature, "messages": messages}
     if tools:
         kwargs["tools"] = tools
     response = _openai().chat.completions.create(**kwargs)
@@ -64,6 +69,6 @@ def _openai() -> OpenAI:
 def _write_log(entry: dict) -> None:
     _LOG_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    text = json.dumps({"at": stamp, "model": COPILOT_MODEL, **entry}, indent=2)
+    text = json.dumps({"at": stamp, **entry}, indent=2)
     (_LOG_DIR / f"{stamp}.json").write_text(text)
     (_LOG_DIR / "latest.json").write_text(text)

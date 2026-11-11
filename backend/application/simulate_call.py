@@ -11,6 +11,7 @@ import json
 
 from application.prompts import REPLAY_CALLER
 from domain.agent_rules import edge_tool, task_text
+from domain.text_model import TEXT_MODEL
 from infrastructure.openai_client import complete_chat
 
 _HANG_UP = "[HANG UP]"
@@ -31,6 +32,7 @@ def simulate_call(
     if current not in nodes:
         return {"transcript": [], "path": [], "ended": "no_start"}
     persona = agent.get("persona") or ""
+    model = agent.get("model") or TEXT_MODEL
     messages: list[dict] = []
     if current != agent.get("initial_node") and known:
         # Mirrors application.caller_data.share_caller_data on a live call.
@@ -42,7 +44,7 @@ def simulate_call(
     transcript: list[dict] = []
 
     for _ in range(max_exchanges):
-        current, said = _agent_turn(messages, nodes, current, catalog, persona, path)
+        current, said = _agent_turn(messages, nodes, current, catalog, persona, path, model)
         if said:
             transcript.append({"role": "agent", "text": said, "step": current})
         if nodes[current].get("end") and said:
@@ -63,11 +65,11 @@ def _enter(messages: list[dict], node: dict, persona: str) -> None:
     messages.append({"role": "system", "content": task_text(node)})
 
 
-def _agent_turn(messages, nodes, current, catalog, persona, path) -> tuple[str, str]:
+def _agent_turn(messages, nodes, current, catalog, persona, path, model) -> tuple[str, str]:
     for _ in range(_MAX_HOPS):
         node = nodes[current]
         tools = [edge_tool(edge, catalog) for edge in node.get("edges") or [] if isinstance(edge, dict)]
-        reply = complete_chat(messages, [_openai_tool(tool) for tool in tools] or None)
+        reply = complete_chat(messages, [_openai_tool(tool) for tool in tools] or None, model=model)
         calls = reply.tool_calls or []
         if not calls:
             text = (reply.content or "").strip()

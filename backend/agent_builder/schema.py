@@ -11,8 +11,10 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
+from domain.text_model import TEXT_MODEL
+
 DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # ElevenLabs "Rachel"
-DEFAULT_MODEL = "gpt-4o"
+DEFAULT_MODEL = TEXT_MODEL
 
 
 @dataclass
