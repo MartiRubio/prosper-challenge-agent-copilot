@@ -31,6 +31,8 @@ from pipecat.services.elevenlabs.stt import ElevenLabsRealtimeSTTService
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.base_transport import BaseTransport, TransportParams
+from pipecat.turns.user_start import MinWordsUserTurnStartStrategy
+from pipecat.turns.user_turn_strategies import UserTurnStrategies
 from pipecat.workers.runner import WorkerRunner
 from pipecat_flows import FlowManager
 
@@ -43,6 +45,9 @@ from application.calls.record_call import record_call
 
 # Load .env next to this file, so the bot runs the same from the repo root or backend/.
 load_dotenv(Path(__file__).parent / ".env", override=True)
+
+# Words a caller must say before the bot stops talking over them.
+_INTERRUPT_AFTER_WORDS = 3
 
 transport_params = {
     "webrtc": lambda: TransportParams(audio_in_enabled=True, audio_out_enabled=True),
@@ -69,7 +74,16 @@ async def run_bot(
     context = LLMContext()
     context_aggregator = LLMContextAggregatorPair(
         context,
-        user_params=LLMUserAggregatorParams(vad_analyzer=SileroVADAnalyzer()),
+        user_params=LLMUserAggregatorParams(
+            vad_analyzer=SileroVADAnalyzer(),
+            # By default any 0.2 s of voice-like sound interrupts the bot, so the
+            # bot's own audio leaking from the speakers into the mic cut it off.
+            # While the bot speaks, the caller now has to say a few words first;
+            # when the bot is silent, one word still starts their turn.
+            user_turn_strategies=UserTurnStrategies(
+                start=[MinWordsUserTurnStartStrategy(min_words=_INTERRUPT_AFTER_WORDS)],
+            ),
+        ),
     )
 
     pipeline = Pipeline(
