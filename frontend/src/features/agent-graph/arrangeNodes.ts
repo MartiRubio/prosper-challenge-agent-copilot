@@ -1,6 +1,7 @@
 import { Graph, layout } from "@dagrejs/dagre";
 
 import type { AgentDocument, NodePosition } from "../editor/agentDocument";
+import { labelWidth } from "./labelPlacement";
 import { END_ID, START_ID } from "./markers";
 
 const STEP_SIZE = { width: 180, height: 52 };
@@ -12,7 +13,9 @@ export function arrangeNodes(
 ): Record<string, NodePosition> {
     const graph = new Graph({ multigraph: true });
     graph.setDefaultEdgeLabel(() => ({}));
-    graph.setGraph({ rankdir: "TB", nodesep: 90, ranksep: 56, marginx: 24, marginy: 24 });
+    // Arrows carry labels, so the layout reserves room for each one: labelled
+    // arrows out of one step get pushed apart, and ranks get space for the labels.
+    graph.setGraph({ rankdir: "TB", nodesep: 48, edgesep: 24, ranksep: 64, marginx: 24, marginy: 24 });
     for (const id of nodeIds(document)) {
         const measured = sizes[id];
         const fallback = id === START_ID || id === END_ID ? MARKER_SIZE : STEP_SIZE;
@@ -22,11 +25,11 @@ export function arrangeNodes(
         });
     }
     let edgeIndex = 0;
-    const link = (source: string, target: string) => {
+    const link = (source: string, target: string, functionName?: string) => {
         if (!graph.hasNode(source) || !graph.hasNode(target) || source === target) {
             return;
         }
-        graph.setEdge(source, target, {}, `e${edgeIndex}`);
+        graph.setEdge(source, target, { width: labelWidth(functionName), height: 30, labelpos: "c" }, `e${edgeIndex}`);
         edgeIndex += 1;
     };
     if (document.nodes.some((node) => node.name === document.initial_node)) {
@@ -34,7 +37,7 @@ export function arrangeNodes(
     }
     for (const node of document.nodes) {
         for (const edge of node.edges ?? []) {
-            link(node.name, edge.target);
+            link(node.name, edge.target, edge.function);
         }
         if (node.end) {
             link(node.name, END_ID);

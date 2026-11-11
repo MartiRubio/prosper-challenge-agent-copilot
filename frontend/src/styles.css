@@ -1,52 +1,52 @@
 /* ==========================================================================
    Tokens. Every color, radius, shadow, and timing in the app comes from here.
-   Chocolate is the product and the copilot; green / amber / red only mean what
+   Prosper navy is the product and the copilot; green / amber / red only mean what
    a review adds, changes, or removes.
    ========================================================================== */
 :root {
     color-scheme: light;
 
-    /* Neutrals: a cool-leaning stone, not cream. The brown carries the brand. */
-    --bg: #ecebe8;
+    /* Neutrals: cool grey, not cream. Prosper's navy carries the brand. */
+    --bg: #edeff1;
     --surface: #ffffff;
-    --surface-2: #f6f5f3;
-    --surface-sunken: #e6e4e0;
-    --ink: #1f1611;
-    --ink-2: #3b2e26;
-    --muted: #74675e;
-    --line: #dedad5;
-    --line-strong: #c9c2bb;
+    --surface-2: #f6f7f8;
+    --surface-sunken: #e4e7ea;
+    --ink: #0f1a22;
+    --ink-2: #2c3a44;
+    --muted: #64717b;
+    --line: #dce1e5;
+    --line-strong: #c5ccd2;
 
-    /* One accent: chocolate. The copilot uses the same family, a shade lighter. */
-    --accent: #4a3226;
-    --accent-strong: #2e1f17;
-    --accent-soft: #f1e9e3;
-    --accent-ring: rgba(74, 50, 38, 0.22);
+    /* One accent: Prosper navy (#013653). The copilot uses Prosper's ocean blue (#095580), the same family. */
+    --accent: #013653;
+    --accent-strong: #00243a;
+    --accent-soft: #e6eef4;
+    --accent-ring: rgba(1, 54, 83, 0.22);
 
-    --ai: #7a4f36;
-    --ai-strong: #5c3a27;
-    --ai-soft: #f4ece6;
-    --ai-ring: rgba(122, 79, 54, 0.25);
+    --ai: #095580;
+    --ai-strong: #07466a;
+    --ai-soft: #e7f0f6;
+    --ai-ring: rgba(9, 85, 128, 0.25);
 
     /* Review colors only mean add / change / remove. */
-    --review-add: #2f7a4a;
-    --review-add-soft: #e7f2ea;
+    --review-add: #1f7a4d;
+    --review-add-soft: #e5f2eb;
     --review-change: #a5640f;
     --review-change-soft: #fbf1e2;
-    --review-remove: #b23a2a;
-    --review-remove-soft: #fae9e6;
-    --hot: #c0702f;
+    --review-remove: #c2361f;
+    --review-remove-soft: #fbe9e5;
+    --hot: #0a7bbd;
 
-    --danger: #b23a2a;
-    --danger-soft: #fae9e6;
-    --ok: #2f7a4a;
-    --ok-soft: #e7f2ea;
+    --danger: #c2361f;
+    --danger-soft: #fbe9e5;
+    --ok: #1f7a4d;
+    --ok-soft: #e5f2eb;
     --warn: #a5640f;
     --warn-soft: #fbf1e2;
 
-    --edge: #a0958d;
-    --fn: #6b4632;
-    --fn-soft: #f3ece6;
+    --edge: #98a3ab;
+    --fn: #0b4a6f;
+    --fn-soft: #eaf1f6;
 
     /* Radius by role: controls are tight, panels softer, only counts are round. */
     --radius-sm: 6px;
@@ -54,9 +54,9 @@
     --radius-lg: 12px;
     --radius-pill: 999px;
 
-    --shadow-sm: 0 1px 1px rgba(31, 22, 17, 0.05);
-    --shadow: 0 1px 2px rgba(31, 22, 17, 0.06), 0 4px 12px rgba(31, 22, 17, 0.05);
-    --shadow-lg: 0 2px 4px rgba(31, 22, 17, 0.06), 0 16px 40px rgba(31, 22, 17, 0.14);
+    --shadow-sm: 0 1px 1px rgba(15, 26, 34, 0.05);
+    --shadow: 0 1px 2px rgba(15, 26, 34, 0.06), 0 4px 12px rgba(15, 26, 34, 0.05);
+    --shadow-lg: 0 2px 4px rgba(15, 26, 34, 0.06), 0 16px 40px rgba(15, 26, 34, 0.14);
 
     --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
@@ -162,12 +162,12 @@ svg {
 
 @keyframes pick-pulse {
     0%, 100% { box-shadow: 0 0 0 0 var(--accent-ring); }
-    70% { box-shadow: 0 0 0 9px rgba(74, 50, 38, 0); }
+    70% { box-shadow: 0 0 0 9px rgba(1, 54, 83, 0); }
 }
 
 @keyframes live-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(192, 112, 47, 0.5); }
-    60% { box-shadow: 0 0 0 10px rgba(192, 112, 47, 0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(10, 123, 189, 0.45); }
+    60% { box-shadow: 0 0 0 10px rgba(10, 123, 189, 0); }
 }
 
 @keyframes ai-shimmer {
@@ -398,23 +398,23 @@ svg {
     gap: 14px;
     min-height: 0;
     padding: 16px 12px;
-    border-right: 1px solid #1a110c;
-    background: #2a1c15;
+    border-right: 1px solid #012a41;
+    background: #013653;
     color: var(--ink);
 
     /* Everything inside the sidebar reads these instead of the light tokens. */
-    --surface: #3a2a21;
-    --surface-2: #33241c;
-    --surface-sunken: #22160f;
-    --ink: #f3ebe4;
-    --ink-2: #ddcfc4;
-    --muted: #a8968a;
-    --line: #47352b;
-    --line-strong: #5c4739;
-    --accent: #e6d3c3;
-    --accent-strong: #f3ebe4;
-    --accent-soft: rgba(230, 211, 195, 0.12);
-    --accent-ring: rgba(230, 211, 195, 0.3);
+    --surface: #0c4a6e;
+    --surface-2: #074263;
+    --surface-sunken: #012a41;
+    --ink: #eef4f8;
+    --ink-2: #cfdde7;
+    --muted: #8fa8b9;
+    --line: #17506f;
+    --line-strong: #246189;
+    --accent: #cfe3f0;
+    --accent-strong: #eef4f8;
+    --accent-soft: rgba(207, 227, 240, 0.12);
+    --accent-ring: rgba(207, 227, 240, 0.3);
 }
 
 .brand {
@@ -429,8 +429,8 @@ svg {
     width: 22px;
     height: 22px;
     border-radius: 6px;
-    background: #c8a27c;
-    box-shadow: inset 0 0 0 5px #6b4632;
+    background: #ff421c;
+    box-shadow: inset 0 0 0 4px #eef4f8;
 }
 
 .segmented {
@@ -879,7 +879,7 @@ input.agent-name {
 }
 
 .agent-canvas .react-flow__background {
-    color: #cdc8c2;
+    color: #c9d0d6;
 }
 
 .agent-canvas .react-flow__controls {
@@ -1005,7 +1005,7 @@ input.agent-name {
 .react-flow__node.review-add .step-node {
     border-color: var(--review-add);
     background: var(--review-add-soft);
-    box-shadow: 0 0 0 4px rgba(47, 122, 74, 0.16), var(--shadow);
+    box-shadow: 0 0 0 4px rgba(31, 122, 77, 0.16), var(--shadow);
     animation: pop-in 420ms var(--ease);
 }
 
@@ -1084,12 +1084,14 @@ input.agent-name {
 
 .edge-function select {
     width: max-content;
-    min-width: 120px;
-    max-width: 180px;
+    min-width: 96px;
+    max-width: 160px;
     height: 26px;
-    padding: 0 8px;
+    padding: 0 6px;
+    overflow: hidden;
     border: 1px solid color-mix(in srgb, var(--fn) 25%, var(--line));
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius-sm);
+    text-overflow: ellipsis;
     background: var(--fn-soft);
     box-shadow: var(--shadow-sm);
     color: var(--fn);
@@ -1964,7 +1966,7 @@ input.agent-name {
 .line-before {
     color: var(--review-remove);
     text-decoration: line-through;
-    text-decoration-color: rgba(178, 58, 42, 0.4);
+    text-decoration-color: rgba(194, 54, 31, 0.4);
 }
 
 .line-after {
@@ -2232,7 +2234,7 @@ button.chip:not(.is-fixed):hover {
     z-index: 50;
     display: grid;
     place-items: center;
-    background: rgba(27, 26, 23, 0.32);
+    background: rgba(15, 26, 34, 0.32);
     backdrop-filter: blur(2px);
     animation: fade var(--fast) var(--ease);
 }
@@ -2536,7 +2538,7 @@ button.chip:not(.is-fixed):hover {
     height: 6px;
     overflow: hidden;
     border-radius: var(--radius-pill);
-    background: rgba(27, 26, 23, 0.1);
+    background: rgba(15, 26, 34, 0.1);
 }
 
 .coverage-meter span {
@@ -2622,7 +2624,7 @@ button.chip:not(.is-fixed):hover {
     place-items: center;
     padding: 24px;
     border-radius: var(--radius-lg);
-    background: rgba(236, 235, 232, 0.88);
+    background: rgba(237, 239, 241, 0.88);
     backdrop-filter: blur(3px);
     animation: fade var(--med) var(--ease);
 }

@@ -4,9 +4,11 @@ import { X } from "lucide-react";
 import { functionOptions } from "../graph-edits/editEdge";
 import { isPlainFunction, NO_FUNCTION } from "../graph-edits/plainFunction";
 import { useGraphActions } from "./GraphActions";
+import { pickerWidth, useLabelPoint } from "./labelPlacement";
 import type { FlowEdgeData } from "./syncFlow";
 
 export function FunctionEdge({
+    id,
     source,
     target,
     sourceX,
@@ -21,7 +23,7 @@ export function FunctionEdge({
 }: EdgeProps) {
     const edge = data as FlowEdgeData | undefined;
     const { document, functions, assignFunction, removeEdge, locked } = useGraphActions();
-    const [edgePath, labelX, labelY] = getBezierPath({
+    const [edgePath, middleX, middleY] = getBezierPath({
         sourceX,
         sourceY,
         sourcePosition,
@@ -29,6 +31,10 @@ export function FunctionEdge({
         targetY,
         targetPosition,
     });
+    // A spot further along the arrow when the middle is taken by another label or a step.
+    const placed = useLabelPoint(id);
+    const labelX = placed?.x ?? middleX;
+    const labelY = placed?.y ?? middleY;
     const review = edge?.review;
     const edgeStyle = {
         ...style,
@@ -80,6 +86,8 @@ export function FunctionEdge({
                 >
                     <select
                         className="pill-input nodrag nopan"
+                        title={isPlainFunction(current) ? "No function" : current}
+                        style={{ width: pickerWidth(current) }}
                         aria-label={`Function for arrow from ${source} to ${target}`}
                         value={isPlainFunction(current) ? NO_FUNCTION : current}
                         onPointerDown={(event) => event.stopPropagation()}

@@ -26,6 +26,7 @@ import { handleSides } from "./handleSides";
 import { CanvasTools } from "./CanvasTools";
 import { edgeTypes } from "./FunctionEdge";
 import { GraphActionsProvider, type GraphActions } from "./GraphActions";
+import { LabelPlacementContext, placeLabels } from "./labelPlacement";
 import { isMarker } from "./markers";
 import { nodeTypes } from "./nodeTypes";
 import type { FocusChip } from "../copilot/focus";
@@ -209,12 +210,15 @@ export function AgentCanvas({
         }
     }
 
+    const labelPoints = useMemo(() => placeLabels(nodes, edges), [nodes, edges]);
+
     const canRemove = nodes.some((node) => node.selected && !isMarker(node.id))
         || edges.some((edge) => edge.selected && (edge.data as FlowEdgeData | undefined)?.removable);
 
     return (
         <div className={picking ? "agent-canvas is-picking" : "agent-canvas"}>
             <GraphActionsProvider value={actions}>
+                <LabelPlacementContext.Provider value={labelPoints}>
                 <ReactFlow
                     nodes={nodes}
                     edges={edges}
@@ -263,6 +267,7 @@ export function AgentCanvas({
                     <Background />
                     <Controls showInteractive={false} />
                 </ReactFlow>
+                </LabelPlacementContext.Provider>
             </GraphActionsProvider>
         </div>
     );
