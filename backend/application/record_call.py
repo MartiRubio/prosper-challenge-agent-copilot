@@ -8,7 +8,13 @@ from infrastructure.agent_files import InvalidAgentId, agent_path
 from infrastructure.call_files import append_recorded
 
 
-def record_call(agent_id: str | None, messages: list, agent: dict | None = None) -> None:
+def record_call(
+    agent_id: str | None,
+    messages: list,
+    agent: dict | None = None,
+    start_node: str | None = None,
+    test_data: dict[str, str] | None = None,
+) -> None:
     if not agent_id:
         logger.warning("Call log skipped: the session had no agent id.")
         return
@@ -32,6 +38,11 @@ def record_call(agent_id: str | None, messages: list, agent: dict | None = None)
     }
     if isinstance(agent, dict):
         call["agent"] = agent
+    initial = agent.get("initial_node") if isinstance(agent, dict) else None
+    if start_node and start_node != initial:
+        # Started mid-graph from the editor: earlier steps were skipped on purpose.
+        call["start_node"] = start_node
+        call["test_data"] = test_data or {}
     path = append_recorded(agent_id, call)
     logger.info(f"Saved {len(turns)} turns for {agent_id} to {path.name}")
 

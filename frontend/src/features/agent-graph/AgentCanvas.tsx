@@ -236,13 +236,15 @@ export function AgentCanvas({
                         if (!(target instanceof Element) || target.closest("input, textarea, select, button, .react-flow__handle")) {
                             return;
                         }
-                        if (!isMarker(node.id)) {
-                            onOpenNode?.(node.id);
-                        }
-                        if (!picking || !onPick || isMarker(node.id)) {
+                        if (isMarker(node.id)) {
                             return;
                         }
-                        onPick(node.id);
+                        // While choosing where a test call starts, a click picks the step and opens nothing.
+                        if (picking && onPick) {
+                            onPick(node.id);
+                            return;
+                        }
+                        onOpenNode?.(node.id);
                     }}
                     onEdgeClick={() => {
                         setNodes((current) => current.map((node) => ({ ...node, selected: false })));

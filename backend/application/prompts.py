@@ -115,6 +115,7 @@ Flag an issue when the agent:
 - ended the call before the caller's need was handled, or never ended it,
 - said something unsafe or inappropriate for a clinic.
 A call that ends mid-way because the caller hung up is fine unless the agent caused it.
+If "started_at_step" is present, this was a test that opened directly on that step: the steps before it were skipped on purpose, and the agent was handed "test_data_given_to_agent" as if the caller had already said it. Do not flag a missing greeting, skipped questions, or the agent using that data without asking; judge only what happens from that step on.
 If there are several problems, report the one that hurt the caller's goal most.
 The step is the one whose task or arrows caused the problem. When the caller was routed down the wrong path, that is the step that routed them, not the step where it became audible.
 

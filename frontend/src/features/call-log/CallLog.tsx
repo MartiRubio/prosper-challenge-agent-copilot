@@ -90,7 +90,13 @@ export function CallLog({ log, sending, openCallId, onOpenCall, onImprove, onFoc
                             <h3>{open.title}</h3>
                             <p className="muted">
                                 {open.source === "test" ? "Test call" : "Production call"} · {formatDate(open.started_at)}
+                                {open.start_node ? <> · started at <span className="step-chip">{open.start_node}</span></> : null}
                             </p>
+                            {open.start_node && open.test_data && Object.keys(open.test_data).length ? (
+                                <p className="muted test-data-line">
+                                    Test data: {Object.entries(open.test_data).map(([key, value]) => `${key} ${value}`).join(" · ")}
+                                </p>
+                            ) : null}
                         </header>
                         <CheckSummary call={open} checking={log.checking.includes(open.id)} onRecheck={() => log.recheck(open.id)} onFocusStep={onFocusStep} />
                         <div className="transcript">

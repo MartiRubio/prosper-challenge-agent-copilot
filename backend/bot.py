@@ -37,6 +37,7 @@ from pipecat_flows import FlowManager
 
 from agent_builder import AgentBuilder
 from application.announce_node import bind_node_announcer
+from application.caller_data import caller_fields
 from application.jump_to_node import jump_to_node
 from application.load_call_agent import load_call_agent
 from application.opening_node import opening_node
@@ -119,8 +120,10 @@ async def run_bot(
         saved = True
         try:
             body = getattr(runner_args, "body", None)
-            agent = body.get("agent") if isinstance(body, dict) else None
-            record_call(agent_id, context.get_messages(), agent)
+            body = body if isinstance(body, dict) else {}
+            agent = body.get("agent") if isinstance(body.get("agent"), dict) else None
+            start_node = body.get("start_node") if isinstance(body.get("start_node"), str) else None
+            record_call(agent_id, context.get_messages(), agent, start_node, caller_fields(body.get("data")))
         except Exception:
             logger.exception("Could not save the call log")
 

@@ -1059,7 +1059,8 @@ input.agent-name {
 }
 
 .edge-plain .edge-remove {
-    opacity: 0.55;
+    opacity: 0.85;
+    border-color: var(--line-strong);
 }
 
 .edge-remove:hover {
@@ -2870,4 +2871,9 @@ button.chip:not(.is-fixed):hover {
     color: var(--ok);
     font-size: 0.68rem;
     font-weight: 650;
+}
+
+.test-data-line {
+    margin-top: 4px;
+    font-size: 0.76rem;
 }

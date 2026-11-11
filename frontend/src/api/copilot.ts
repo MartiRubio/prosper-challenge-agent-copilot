@@ -28,6 +28,9 @@ export type LoggedCall = {
     source: "production" | "test" | "sample";
     turns: CallTurn[];
     check: CallCheck | null;
+    /** Set when a test call opened on a later step instead of Start. */
+    start_node?: string;
+    test_data?: Record<string, string>;
 };
 
 export type FlaggedCall = {

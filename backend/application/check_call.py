@@ -28,6 +28,7 @@ def check_call(agent_id: str, call_id: str) -> dict:
             agent = {}
     user = json.dumps({
         "agent": brief_agent(agent),
+        **_started_mid_graph(call),
         "transcript": [
             {"speaker": turn.get("role"), "text": turn.get("text")}
             for turn in call.get("turns") or []
@@ -37,6 +38,17 @@ def check_call(agent_id: str, call_id: str) -> dict:
     check = _clean(complete_json(CALL_CHECK, user, temperature=0))
     write_check(agent_id, call_id, check)
     return check
+
+
+def _started_mid_graph(call: dict) -> dict:
+    """A test call started from a later step skips the earlier ones on purpose."""
+    start = call.get("start_node")
+    if not isinstance(start, str) or not start:
+        return {}
+    return {
+        "started_at_step": start,
+        "test_data_given_to_agent": call.get("test_data") or {},
+    }
 
 
 def _clean(data: dict) -> dict:

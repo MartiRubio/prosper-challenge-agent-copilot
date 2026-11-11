@@ -3,7 +3,8 @@ import type { DrawnEdge } from "../agent-graph/drawnEdge";
 
 export function disconnectEdge(document: AgentDocument, edge: DrawnEdge): AgentDocument {
     if (edge.kind === "start") {
-        return document;
+        // Start points nowhere until it is connected again; saving asks for that.
+        return document.initial_node ? { ...document, initial_node: "" } : document;
     }
     const next = structuredClone(document);
     const node = next.nodes.find((item) => item.name === edge.source);

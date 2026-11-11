@@ -57,7 +57,7 @@ export function projectEdges(document: AgentDocument, current: Edge[], review: R
         edges.push(flowEdge("marker:start", START_ID, document.initial_node, undefined, {
             kind: "start",
             source: START_ID,
-            removable: false,
+            removable: true,
         }, selected));
     }
     for (const node of document.nodes) {
