@@ -1,40 +1,93 @@
 # Solution
 
-Phase 1 is a local editor for the voice agent that already ships with this repo. An agent stays a JSON document. The editor draws that document as a graph. A step shows its name. Double-click opens the spoken task in the same raw and markdown editor as the prompt, including the token view. Each arrow out of a step picks a function from the shared catalog, on the anchor, or `no_function` when the step only continues. The catalog's fields are the test data. Start and End are fixed markers with no script: Start's edge is the first step, and an edge into End finishes the call. The agent name is edited in the list. The prompt opens in a raw view and a markdown view; the raw view can show how tiktoken splits it. Auto-arrange places the nodes left to right, then back across the next row, so the names stay readable and the turn between rows is a short arrow. Dragging a node stays on screen and is not written to the file. A test call runs the graph on screen, saved or not, and plays the bot's audio track in the page. The call tells the page which step it is in. Test call becomes Start, and Start from node asks for the fields those functions collect, then a click on a pulsing step opens the call there. A click during the call does not move it.
+The deployment team does two kinds of manual work. It turns a client's guidelines into an agent. Then it reads production calls, works out which step failed, and fixes it. Spotting the failing calls is part of that work.
+
+This submission is a graph editor with a test call (Phase 1) and a copilot built around that second loop (Phase 2). The copilot works like a code review for agents. It never rewrites the agent. It proposes small, typed changes, draws them on the graph, and cites why each one exists. A person keeps or discards each change. Then the copilot shows whether the fix holds.
 
 ```
-editor  ->  agent API  ->  backend/agents/*.json
-editor  ->  POST /start { agent_id }  ->  bot.py  ->  AgentBuilder  ->  Pipecat Flows
+ guidelines (.txt/.pdf) ─┐
+ a request in the chat ──┼─▶ copilot proposes ops ─▶ diff on the canvas ─▶ Keep / Discard ─▶ Save (snapshot)
+ flagged calls ──────────┘          ▲  each op cites a quote                       │
+                                    │                                               ▼
+        Replay: before ✗ / after ✓ ◀┴── simulated caller ◀── test call ─▶ call log ─▶ automatic check flags the call
 ```
 
-The voice pipeline is unchanged: browser mic, ElevenLabs speech-to-text, OpenAI, ElevenLabs text-to-speech, browser speaker. `AgentBuilder` still compiles the JSON into a Pipecat Flows graph. The editor starts the call, hears which step the call entered, and can ask the call to jump to a step.
+## The copilot
 
-How to run it, once the processes exist:
+### 1. From guidelines to a first agent
+
+Attach the client's guideline document (.txt, .md, or .pdf) in the copilot and ask for an agent. The copilot lists every rule in the document that changes how a call should go, and builds the graph as one change per path: intake, booking, cancellation, an emergency exit, a handoff. Each step cites the guideline sentence it implements. A coverage bar shows how many rules the draft covers. Rules nothing covers get a "Cover the missing rules" button. The attachment stays attached for follow-up requests.
+
+### 2. From production calls to a fix
+
+Every call in the Call log is checked by the copilot as soon as it appears. That includes a test call the moment it ends. The check says whether something went wrong, how serious it is, which step caused it, and quotes the line that shows it. The quoted line is outlined in the transcript, and the step can be sent to the copilot's focus with one click. A call with an issue is pre-flagged, with the check's feedback filled in. You edit the feedback or accept it, then choose Improve.
+
+This targets the detection burden directly. Nobody has to read every transcript to find the bad ones.
+
+### 3. Proving the fix holds
+
+After you keep changes that came from flagged calls, Replay calls those calls again. It does not replay the caller's old lines, which go stale after the first turn that goes differently. It pulls the caller's goal and facts out of the call ("wants to cancel Thursday, does not want a new time"). A model plays that caller live, in text, against the graph. The simulator runs the graph the way Pipecat Flows does: the persona plus the current step's task, with the step's arrows as tools. A judge decides whether the flagged problem happened again. It judges what the agent did, not what it said it did: claiming a cancellation from a step that cannot cancel is a fail.
+
+The same brief calls the graph before the change and after it, so you see **Before ✗ → After ✓** per call, with transcripts and the path of steps taken. A replay that still fails goes back to the copilot as a new flagged call in one click. While building this, replay caught a real defect: a cancel arrow that never fired, because a generic arrow on the same step matched first. The prompt now asks the copilot to narrow overlapping arrows.
+
+### Why the output can be trusted
+
+- **Ops, not rewrites.** The model returns typed operations (`add_node`, `add_edge`, `set_task`, …). The server applies them to a copy and validates the result. If the result is invalid, the server sends the exact error back to the model and retries, up to three attempts.
+- **Shape checks.** Before a proposal reaches you, every arrow must point at a step that exists, every step must be reachable from Start, and no step can be a dead end. Every function must be in the catalog. Oversized changes are split. Problems that survive the retries show as a warning instead of failing the request.
+- **Evidence is checked.** Each change quotes a call line, a guideline sentence, or your request, and the server checks that the quote really appears in its source. Cards show "In source" or "Not found in source".
+- **Nothing is written until you say so.** Proposed changes are previewed on the canvas: added steps in green, rewrites in amber, removals faded and struck through. The canvas is read-only during a review. Functions the copilot adds are written to the catalog only when the agent is saved.
+- **Every save is a snapshot.** History restores any earlier version as unsaved edits.
+
+## Phase 1: the builder
+
+An agent stays the JSON document `AgentBuilder` already compiles. The editor draws it as a graph. Start and End are markers; an arrow into End sets `end` on that step. Each arrow out of a step picks a function from a shared catalog, which owns the function's fields. A test call runs the graph currently on screen, saved or not. The runner pushes the active step over the WebRTC data channel and the canvas highlights it. Start from node opens a call on any step with test data filled in.
+
+## Architecture
+
+```
+frontend (React, React Flow) ──▶ agent API :8000 (FastAPI) ──▶ backend/agents/*.json, history/, logs/
+           │                                │
+           └── POST /start { agent } ──▶ voice runner :7860 (Pipecat) ──▶ AgentBuilder ──▶ Pipecat Flows
+```
+
+The backend is split by job:
+
+- `domain/` holds the rules everyone shares: names, plain continues, op order, and what a tool looks like for an arrow. Both the voice runner and the replay simulator build tools from the same function.
+- `application/` has one use case per file: `copilot_edit`, `check_call`, `replay_calls`, `simulate_call`, `extract_attachment`, `save_agent`, …
+- `infrastructure/` holds the OpenAI client (every prompt and answer is logged under `logs/llm/`), agent files, call files, and snapshots.
+- `interfaces/http/` has one router per resource.
+
+The voice pipeline is unchanged: browser mic → ElevenLabs STT → OpenAI → ElevenLabs TTS → browser.
+
+## Scoping
+
+| | What | Why |
+| --- | --- | --- |
+| **Built** | Guideline intake with coverage, call checks on arrival, evidence on every change, replay before/after, snapshots | These remove the work the brief describes: encoding guidelines, finding bad calls, finding the failing step, and trusting the fix. |
+| **Mocked** | Production calls (`backend/sample_calls/`) | No real call data was provided. Three calls cover a routing bug, a safety miss, and a good call. Test calls are recorded and checked the same way. |
+| **Left out** | Telephony, accounts, multi-user editing, call ingestion from a provider, dashboards | They don't change whether the copilot works. A real ingestion job would write to the same call files. |
+| **Left out on purpose** | A copilot that regenerates the whole agent | Whole-agent rewrites are hard to review and break working paths. Small cited ops are slower to write but fast to trust. |
+
+## Known limits
+
+- Replay is text, not voice. It tests routing and wording, not speech recognition errors or barge-in. The live test call remains the final check.
+- The model is gpt-4o for the copilot, with temperature 0 for checks and judging. Proposals still vary between runs; validation and retries bound that variance, they don't remove it.
+- Test calls read the function catalog on disk. A function the copilot added is heard with its fields only after Save.
+- Files instead of a database, and a single editor at a time.
+
+## Running it
 
 ```bash
 make install
-make api    # http://localhost:8000  agent documents
+make api    # http://localhost:8000  agent API and copilot
 make run    # http://localhost:7860  voice runner
 make web    # http://localhost:5173  editor
 ```
 
-`make run` on its own still serves the prebuilt client at `http://localhost:7860/client` and still loads `backend/example_flow.json` when the call does not name an agent.
-
-A step can have many arrows in and many arrows out. Each outgoing arrow is one function, chosen on the anchor, and one next step. `offer_times` can go to `confirm` or to `callback`. The compiled tool text names the step it continues to. The catalog owns a function's fields. An edge stores the function name and its target.
-
-## Copilot
-
-The chat sits to the left of the canvas. You describe a change, or shift-drag a part of the graph and send that selection into the box. The request always includes the whole agent. The model returns small changes, not a new agent. The canvas draws an added step or arrow in green, a rewritten line in amber, and a removal faded and struck through. Each card has Keep and Discard. Nothing is written until you keep it, and Save is still explicit.
-
-Call log, in the stage header, lists sample calls for the scheduler. Flag any number of them, write what went wrong, and Improve opens the same review. A live test call is not added to that log.
-
-## This leaves out
-
-Accounts, telephony, and a real call-recording pipeline. A second model provider. Version history and campaign analytics.
+Keys go in `backend/.env` (`OPENAI_API_KEY`, `ELEVENLABS_API_KEY`). A sample guideline file is at `docs/samples/riverside-guidelines.pdf` (and `.txt`).
 
 ## Where the reasoning lives
 
-- [docs/decisions/](docs/decisions/) — one file per architecture decision
-- [docs/demo-script.md](docs/demo-script.md) — the live walkthrough
-- [docs/working-log.md](docs/working-log.md) — the running log of this interview
-- [docs/next-steps.md](docs/next-steps.md) — what is in the tree
+- [docs/decisions/](docs/decisions/): one file per decision
+- [docs/demo-script.md](docs/demo-script.md): the live walkthrough
+- [docs/working-log.md](docs/working-log.md): the running log

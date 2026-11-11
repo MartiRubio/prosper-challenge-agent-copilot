@@ -67,3 +67,11 @@ A test call was reading the saved file, so unsaved edits could not be heard, and
 A step's outgoing arrows each carry one function, chosen on the anchor rather than on the line. offer_times now branches to confirm or callback. The tool text the model hears names the next step.
 
 The copilot chat sits left of the canvas. It proposes small changes. The canvas colors what would be added, rewritten, or removed, and each card can be kept or discarded. Call log lists sample calls for the scheduler. Flagging several and choosing Improve uses that same review. Save is still explicit. A new agent opens as Start and End only.
+
+## 2026-11-11 — Closing the loop
+
+A review against the brief found three gaps: nobody detects bad calls but a person, a fix is never shown to hold, and guidelines arrive as documents, not chat. Calls are now checked by the copilot when they appear, and issues pre-flag them. Replay calls flagged calls again with a simulated caller, before and after the change. Guideline files can be attached, and a draft shows which rules it covers. Every change cites its evidence and the quote is checked against the source. Every save keeps a snapshot.
+
+Replay found a real bug while it was being built: catalog descriptions overrode the per-arrow description, so a generic intent arrow swallowed "cancel". The arrow's own description now wins.
+
+Shared rules moved to `backend/domain/`, adapters to `infrastructure/`. The editor was rebuilt around the copilot: a full-height panel, a call log drawer over the canvas, one set of color tokens.

@@ -20,6 +20,11 @@ Put API keys in `backend/.env`. The copilot uses the same `OPENAI_API_KEY` as th
 | `frontend/` | The editor: graph, function catalog, test call, copilot chat, call log. |
 | `backend/bot.py` | WebRTC, ElevenLabs speech, OpenAI. Compiles the agent it is given. |
 | `backend/agent_builder/` | The JSON contract and the compile into Pipecat Flows. |
-| `backend/application/` | One use case per file, including the copilot. |
+| `backend/domain/` | Rules shared by every editor of an agent: names, op order, what a tool looks like. |
+| `backend/application/` | One use case per file, including the copilot, call checks, and replay. |
+| `backend/infrastructure/` | OpenAI client, agent files, call files, snapshots. |
 | `backend/agents/` | Saved agent documents. |
-| `backend/logs/calls/` | One transcript file per agent, written when a test call ends. |
+| `backend/sample_calls/` | Mock production calls for the call log. |
+| `backend/logs/` | Recorded test calls, call checks, and every copilot prompt and answer (git-ignored). |
+| `backend/history/` | A snapshot of each agent per save (git-ignored). |
+| `docs/samples/` | A sample client guideline, as .txt and .pdf, to attach in the copilot. |

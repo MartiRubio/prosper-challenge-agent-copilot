@@ -1,16 +1,50 @@
-# Demo script — Phase 1
+# Demo script
 
-Three processes: `make api`, `make run`, `make web`. Open `http://localhost:5173`.
+About 10 minutes. The order follows what Prosper said matters most: the copilot first, the builder last.
 
-1. The Prosper Scheduler graph is on screen. Start connects to greeting, then collect details, offer times, and confirm, then End.
-2. Double-click the greeting node. The spoken task opens as raw text or markdown, and the raw view can show tokens. Change it so the clinic name is obvious, for example "Riverside Family Medicine". The step name is edited in that same window. The agent name, in the left list, can be edited too. Prompt opens the persona the same way.
-3. Save.
-4. Place a test call. Allow the microphone. The call runs the graph on screen, so the greeting uses the line just edited. Save keeps that line in the file.
-5. Click Test call. The button becomes Start, and Start from node appears to its left. Start begins at the greeting. Start from node shows the caller's intent, name, reason, and slot in place. Fill them and the steps pulse. Click confirm. The assistant should open on the confirmation, and that node lights up. A click during the call does not move it. The page does not poll for the active node.
-6. End the call. Add a step, name it, and drag the + anchor to it. The function is chosen on that anchor: an existing function, or no_function. offer_times already has two arrows, one to confirm and one to callback. Remove clears the selection. Auto-arrange wraps the graph. Dragging a node does not enable Save.
+## Before the call
 
-## Phase 2
+1. Put `OPENAI_API_KEY` and `ELEVENLABS_API_KEY` in `backend/.env`.
+2. Reset the demo state: `make demo-reset`. This restores the scheduler and the catalog, and clears call checks, recorded calls, and history.
+3. Start `make api`, `make run`, `make web`, and open `http://localhost:5173` in Chrome. Allow the microphone once.
+4. Warm up: send one throwaway request in the copilot ("What does the greeting do?") and discard the result. Then run `make demo-reset` again, so the call checks happen live.
+5. Keep `docs/samples/riverside-guidelines.pdf` ready in Finder.
 
-1. New agent. The canvas is Start and End only. In the chat, ask for a clinic scheduler that can book, reschedule, or cancel. Wait for the loading line. Added steps are green. Keep the cards you want. Discard all leaves the canvas empty. Save.
-2. Open Prosper Scheduler. Shift-drag greeting and offer_times. Send to chat puts those names in the box and does not send by itself. Ask the chat to split cancel onto its own step. Keep that card. The new arrow stays on screen as a draft until you keep it.
-3. Call log. The left half lists three sample calls. Open "Caller wanted to cancel". Flag it, and flag "Neither time worked", and write a line of feedback on each. Improve closes the log and opens the same review. Keep the change that stops a cancellation from being offered a new time. Save, then place one test call.
+## 1. Production loop (4 min)
+
+1. Prosper Scheduler is open. Click **Call log**. The three production calls show "Checking", then turn into results: two issues and one "Looks fine". The badge on the button counts the issues.
+2. Open **Chest pain, booked for Tuesday**. The issue card names the step (`collect_details`) and outlines the caller's line in the transcript. Open **Caller wanted to cancel**: the agent offered times to someone who wanted to cancel.
+3. Both are already flagged with feedback from the check. Edit one line of feedback to show it is yours to change.
+4. Click **Improve from 2 flagged calls**. The drawer closes, and the copilot reads the calls against the graph.
+5. Cards arrive. The canvas shows new steps in green and a review banner. Point at a quote: it is the caller's own line, marked "In source". Hover a card and its steps light up.
+6. **Keep all**. Then **Replay 2 flagged calls**. After about 20 seconds: **Before ✗ → After ✓** for both. Open After on the chest-pain call: the agent sends the caller to emergency care, and the path ends in the new step.
+7. **Save** (⌘S). Then **History**: two versions, the original and this one.
+8. **Test call** → **Start**. Say: "Hi, I need to cancel my appointment on Thursday." The highlighted step jumps to the cancel step and the agent confirms and hangs up. Open the Call log: the new test call is already checked.
+
+## 2. From guidelines to an agent (3 min)
+
+1. **New** in the sidebar. The canvas is Start and End.
+2. Click the paperclip in the copilot and attach `riverside-guidelines.pdf`. Type "Build this clinic's scheduling agent from the guidelines" and send.
+3. One card per path, each quoting the guideline it implements. Open **Guidelines covered**: every rule, and the change that covers it.
+4. **Keep all**, **Auto-arrange**, **Save**.
+
+## 3. Precision edits (1 min)
+
+1. Back on Prosper Scheduler, shift-drag across two steps. Click **Send to chat**: they become focus chips.
+2. Ask "Ask for date of birth before offering times." Keep the card.
+3. Double-click a step: the task editor opens. Click the sparkle and ask for a rewrite.
+
+## 4. History (30 s)
+
+**History** → choose the first version. The banner says it is restored as unsaved edits. Don't save.
+
+## 5. The builder (1 min)
+
+Double-click a step and show raw, markdown, and token views. The function on an arrow is a dropdown from the shared catalog. **Functions** in the sidebar edits the catalog. **Start from node** with test data opens a call on any step.
+
+## If something goes wrong
+
+- **The copilot is slow:** talk over the loading line. The checks and Improve each take 5–15 seconds.
+- **A card cannot be kept:** Discard it and ask again with one more sentence of feedback.
+- **Replay still fails after:** click "Fix the replay that still fails". That is the loop working, so say so.
+- **Voice will not connect:** check `make run` is up. Show the replay transcripts instead; they are the same graph.
