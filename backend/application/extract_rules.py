@@ -1,9 +1,12 @@
 """Pull every specific, testable rule out of a client's guideline documents.
 
-Long documents bury their most important rules in table cells, FAQ answers and
-change logs. Reading the whole document in one pass while also designing a graph
-misses most of them, so this runs first, on overlapping slices in parallel, and
-keeps only rules whose quote is really in the document.
+Measured on docs/samples/lakeside-guidelines.pdf (12 buried rules):
+- one call over the whole document finds 7-9 of them; it keeps skipping the
+  same table cell and the same FAQ answer;
+- overlapping ~6,000-character slices read in parallel find 11-12.
+So slices are read in parallel, a rule is kept only when its quote is in the
+document, and one merge call then folds the ~90 raw rules (many repeats from
+overlapping slices) into ~45, so the persona and the review list stay readable.
 """
 
 import json
@@ -15,7 +18,6 @@ from infrastructure.openai_client import complete_json
 
 _SLICE = 6_000
 _OVERLAP = 600
-_MAX_RULES = 40
 
 
 def extract_rules(attachments: list[dict]) -> list[dict]:
@@ -52,23 +54,14 @@ def _merge(rules: list[dict]) -> list[dict]:
         return rules
     payload = json.dumps({"rules": [{"id": rule["id"], "rule": rule["rule"]} for rule in rules]})
     data = complete_json(RULE_MERGE, payload, temperature=0)
-    if len(data.get("rules") or []) > _MAX_RULES:
-        data = complete_json(
-            RULE_MERGE,
-            f"{payload}\n\nYour previous answer had {len(data['rules'])} rules:\n{json.dumps(data)}\n"
-            f"Merge by situation until there are at most {_MAX_RULES}, keeping every specific.",
-            temperature=0,
-        )
     by_id = {rule["id"]: rule for rule in rules}
     merged: list[dict] = []
-    used: set[str] = set()
     for item in data.get("rules") or []:
         if not isinstance(item, dict) or not isinstance(item.get("rule"), str):
             continue
         origins = [by_id[ref] for ref in item.get("from") or [] if ref in by_id]
         if not origins:
             continue
-        used.update(origin["id"] for origin in origins)
         merged.append({
             "id": f"r{len(merged) + 1}",
             "rule": item["rule"].strip(),

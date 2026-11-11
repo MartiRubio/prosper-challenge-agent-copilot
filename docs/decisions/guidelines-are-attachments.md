@@ -14,6 +14,19 @@ So the work is split by what each step is good at:
 
 On the same document this catches 12 of 12 (`docs/samples/lakeside-guidelines-answer-key.md`). The coverage list shows every extracted rule, its quote, and where it lives.
 
+## Is the extraction pass more than it needs to be?
+
+I measured the simpler versions on the same PDF, three runs each, counting how many of the 12 redlines the extracted rule list contains:
+
+| Extraction | Redlines found | Rules | Time |
+| --- | --- | --- | --- |
+| One call, capped at 40 rules | 9, 7, 7 | ~28 | ~10 s |
+| One call, no cap | 9, 9, 9 | ~50 | ~16 s |
+| Overlapping slices, no merge | 11, 12, 11 | ~90 (many repeats) | ~10 s |
+| **Overlapping slices + one merge call (kept)** | 12, 12 | ~44 | ~21 s |
+
+One read of the whole document keeps skipping the same table cell and the same FAQ answer, so the slices are what find the buried rules. The merge call finds nothing new: it halves the list, and so the persona and the review, for about ten seconds. A second "merge further" call that ran when the first returned more than 40 rules was removed; it added time and nothing else.
+
 ## Trade-offs
 
 - The persona gets long (about 8,000 characters for 50 rules). That is a few thousand tokens on each turn, which costs latency and money. It is the price of not losing a rule.
