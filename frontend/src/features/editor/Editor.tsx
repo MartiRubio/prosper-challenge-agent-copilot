@@ -64,7 +64,7 @@ export function Editor() {
         agentId,
         document,
         functions: catalog.functions,
-        replaceFunctions: catalog.update,
+        replaceFunctions: catalog.stage,
         editDocument,
     });
     const callLog = useCallLog(agentId, callLive);
@@ -90,18 +90,33 @@ export function Editor() {
         setShowPersona(false);
     }, [agentId]);
 
+    const saveAll = useCallback(async () => {
+        try {
+            await catalog.flush();
+        } catch {
+            return;
+        }
+        await save();
+    }, [catalog, save]);
+
+    useEffect(() => {
+        catalog.discardStaged();
+        // Only when the open agent changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [agentId]);
+
     useEffect(() => {
         function onKey(event: KeyboardEvent) {
             if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
                 event.preventDefault();
-                if (dirty && !saving) {
-                    void save();
+                if (dirty && !saving && !copilot.locked) {
+                    void saveAll();
                 }
             }
         }
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [dirty, saving, save]);
+    }, [dirty, saving, saveAll, copilot.locked]);
 
     const openCall = useCallback((callId: string) => {
         setCallLogOpen(true);
@@ -240,7 +255,7 @@ export function Editor() {
                                 <button
                                     type="button"
                                     className="btn btn-primary"
-                                    onClick={() => void save()}
+                                    onClick={() => void saveAll()}
                                     disabled={!dirty || saving || document.nodes.length === 0 || copilot.locked}
                                     title={copilot.locked ? "Keep or discard the copilot's changes first" : "Save (⌘S)"}
                                 >
