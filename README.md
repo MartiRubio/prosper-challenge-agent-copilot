@@ -7,6 +7,7 @@ make install
 make api    # http://localhost:8000  agent documents and the copilot
 make run    # http://localhost:7860  voice runner
 make web    # http://localhost:5173  editor
+make test   # backend (pytest) and frontend (vitest) tests, no API keys needed
 ```
 
 `make run` on its own still serves the prebuilt client at `http://localhost:7860/client` and loads `backend/example_flow.json` when the call does not name an agent.

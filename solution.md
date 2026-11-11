@@ -76,6 +76,16 @@ The voice pipeline is unchanged: browser mic → ElevenLabs STT → OpenAI → E
 | **Left out** | Telephony, accounts, multi-user editing, call ingestion from a provider, dashboards | They don't change whether the copilot works. A real ingestion job would write to the same call files. |
 | **Left out on purpose** | A copilot that regenerates the whole agent | Whole-agent rewrites are hard to review and break working paths. Small cited ops are slower to write but fast to trust. |
 
+## Testing
+
+`make test` runs three layers, with no API keys and no network:
+
+- **Unit tests** (`backend/tests/`, pytest): the pure rules in `domain/` (applying ops, validation, how an arrow becomes a tool, the catalog) and the copilot's own checks (proposal shape, evidence quotes, rule slicing, simulated-call profiles).
+- **Use cases with a fake model**: every model call goes through `infrastructure/openai_client.py`, so a fake that returns scripted answers tests the retry loop (a rejected answer is resent as a conversation, the last attempt drops dangling ops), evidence checking, the guideline rules card, the call check, the simulator's step moves, and what each call is sent.
+- **One patch, two engines**: the canvas preview (`applyOps.ts`) and the server (`domain/patch.py`) both run the cases in `contracts/patch-cases.json`. Its first run found five places where the preview disagreed with the server (catalog fields copied onto arrows, untrimmed text, uncleaned new functions, an accepted invalid name, an unknown op treated as `set_end`), so Keep could land something different from what the reviewer saw. They are fixed.
+
+The model's behaviour is tested differently, by measuring it: guideline intake against answer keys (`docs/samples/`, `sample/`), and agents through replay and simulated calls. The next steps would be running those evals whenever a prompt's version changes, and a Playwright test for flag → Improve → Keep → Replay.
+
 ## Known limits
 
 - Replay and simulated calls are text, not voice, and the same model plays the caller, the agent and the checker, so it can share blind spots. The call check judges from the caller’s side and names emergencies explicitly for that reason.
@@ -91,6 +101,7 @@ make install
 make api    # http://localhost:8000  agent API and copilot
 make run    # http://localhost:7860  voice runner
 make web    # http://localhost:5173  editor
+make test   # backend and frontend tests
 ```
 
 Keys go in `backend/.env` (`OPENAI_API_KEY`, `ELEVENLABS_API_KEY`). A sample guideline file is at `docs/samples/riverside-guidelines.pdf` (and `.txt`).

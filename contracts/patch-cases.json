@@ -1,0 +1,2532 @@
+{
+  "about": "Shared cases for the two patch engines: backend/domain/patch.py (the server, source of truth) and frontend/src/features/copilot/applyOps.ts (the canvas preview). Both test suites run every case; 'expected' is the server's output, 'error' a message both must raise.",
+  "cases": [
+    {
+      "name": "steps and arrows apply in dependency order",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "add_edge",
+          "source": "greeting",
+          "function": "no_function",
+          "target": "cancel",
+          "description": "When they want to cancel."
+        },
+        {
+          "op": "add_node",
+          "name": "cancel",
+          "content": "Cancel the visit.",
+          "end": true
+        }
+      ],
+      "expected": {
+        "agent": {
+          "name": "Test clinic",
+          "persona": "You are a scheduling assistant.",
+          "initial_node": "greeting",
+          "nodes": [
+            {
+              "name": "greeting",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Greet the caller."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "choose_intent",
+                  "description": "When they say what they want.",
+                  "target": "collect",
+                  "properties": {},
+                  "required": []
+                },
+                {
+                  "function": "no_function",
+                  "description": "When they want to cancel.",
+                  "target": "cancel",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "collect",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Collect name and reason."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "record_details",
+                  "description": "",
+                  "target": "confirm",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "confirm",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Confirm and say goodbye."
+                }
+              ],
+              "edges": [],
+              "end": true
+            },
+            {
+              "name": "cancel",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Cancel the visit."
+                }
+              ],
+              "edges": [],
+              "end": true
+            }
+          ]
+        },
+        "functions": [
+          {
+            "name": "choose_intent",
+            "description": "Record what the caller wants.",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "description": "What they want",
+                "enum": [
+                  "book",
+                  "cancel"
+                ]
+              }
+            },
+            "required": [
+              "intent"
+            ]
+          },
+          {
+            "name": "record_details",
+            "description": "Record name and reason.",
+            "properties": {},
+            "required": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "removing a step removes arrows into it and moves start",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "remove_node",
+          "node": "greeting"
+        }
+      ],
+      "expected": {
+        "agent": {
+          "name": "Test clinic",
+          "persona": "You are a scheduling assistant.",
+          "initial_node": "collect",
+          "nodes": [
+            {
+              "name": "collect",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Collect name and reason."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "record_details",
+                  "description": "",
+                  "target": "confirm",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "confirm",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Confirm and say goodbye."
+                }
+              ],
+              "edges": [],
+              "end": true
+            }
+          ]
+        },
+        "functions": [
+          {
+            "name": "choose_intent",
+            "description": "Record what the caller wants.",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "description": "What they want",
+                "enum": [
+                  "book",
+                  "cancel"
+                ]
+              }
+            },
+            "required": [
+              "intent"
+            ]
+          },
+          {
+            "name": "record_details",
+            "description": "Record name and reason.",
+            "properties": {},
+            "required": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "the first step on an empty agent becomes start",
+      "document": {
+        "name": "New",
+        "persona": "",
+        "initial_node": "",
+        "nodes": []
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "add_node",
+          "name": "hello",
+          "content": "Say hi."
+        }
+      ],
+      "expected": {
+        "agent": {
+          "name": "New",
+          "persona": "",
+          "initial_node": "hello",
+          "nodes": [
+            {
+              "name": "hello",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Say hi."
+                }
+              ],
+              "edges": [],
+              "end": false
+            }
+          ]
+        },
+        "functions": [
+          {
+            "name": "choose_intent",
+            "description": "Record what the caller wants.",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "description": "What they want",
+                "enum": [
+                  "book",
+                  "cancel"
+                ]
+              }
+            },
+            "required": [
+              "intent"
+            ]
+          },
+          {
+            "name": "record_details",
+            "description": "Record name and reason.",
+            "properties": {},
+            "required": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "a catalog function keeps its fields in the catalog",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "add_edge",
+          "source": "confirm",
+          "function": "choose_intent",
+          "target": "greeting",
+          "properties": {
+            "x": {
+              "type": "string",
+              "description": "ignored"
+            }
+          },
+          "required": [
+            "x"
+          ]
+        }
+      ],
+      "expected": {
+        "agent": {
+          "name": "Test clinic",
+          "persona": "You are a scheduling assistant.",
+          "initial_node": "greeting",
+          "nodes": [
+            {
+              "name": "greeting",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Greet the caller."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "choose_intent",
+                  "description": "When they say what they want.",
+                  "target": "collect",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "collect",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Collect name and reason."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "record_details",
+                  "description": "",
+                  "target": "confirm",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "confirm",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Confirm and say goodbye."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "choose_intent",
+                  "description": "Record what the caller wants.",
+                  "target": "greeting",
+                  "properties": {},
+                  "required": []
+                }
+              ],
+              "end": true
+            }
+          ]
+        },
+        "functions": [
+          {
+            "name": "choose_intent",
+            "description": "Record what the caller wants.",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "description": "What they want",
+                "enum": [
+                  "book",
+                  "cancel"
+                ]
+              }
+            },
+            "required": [
+              "intent"
+            ]
+          },
+          {
+            "name": "record_details",
+            "description": "Record name and reason.",
+            "properties": {},
+            "required": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "a blank arrow description falls back to the destination",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "add_edge",
+          "source": "confirm",
+          "function": "go_back",
+          "target": "greeting",
+          "description": "   "
+        }
+      ],
+      "expected": {
+        "agent": {
+          "name": "Test clinic",
+          "persona": "You are a scheduling assistant.",
+          "initial_node": "greeting",
+          "nodes": [
+            {
+              "name": "greeting",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Greet the caller."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "choose_intent",
+                  "description": "When they say what they want.",
+                  "target": "collect",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "collect",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Collect name and reason."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "record_details",
+                  "description": "",
+                  "target": "confirm",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "confirm",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Confirm and say goodbye."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "go_back",
+                  "description": "Continue to greeting.",
+                  "target": "greeting",
+                  "properties": {},
+                  "required": []
+                }
+              ],
+              "end": true
+            }
+          ]
+        },
+        "functions": [
+          {
+            "name": "choose_intent",
+            "description": "Record what the caller wants.",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "description": "What they want",
+                "enum": [
+                  "book",
+                  "cancel"
+                ]
+              }
+            },
+            "required": [
+              "intent"
+            ]
+          },
+          {
+            "name": "record_details",
+            "description": "Record name and reason.",
+            "properties": {},
+            "required": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "a second plain arrow from one step gets a suffix",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "add_edge",
+          "source": "confirm",
+          "function": "no_function",
+          "target": "greeting"
+        },
+        {
+          "op": "add_edge",
+          "source": "confirm",
+          "function": "no_function",
+          "target": "collect"
+        }
+      ],
+      "expected": {
+        "agent": {
+          "name": "Test clinic",
+          "persona": "You are a scheduling assistant.",
+          "initial_node": "greeting",
+          "nodes": [
+            {
+              "name": "greeting",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Greet the caller."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "choose_intent",
+                  "description": "When they say what they want.",
+                  "target": "collect",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "collect",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Collect name and reason."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "record_details",
+                  "description": "",
+                  "target": "confirm",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "confirm",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Confirm and say goodbye."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "no_function",
+                  "description": "Continue to greeting.",
+                  "target": "greeting",
+                  "properties": {},
+                  "required": []
+                },
+                {
+                  "function": "no_function_2",
+                  "description": "Continue to collect.",
+                  "target": "collect",
+                  "properties": {},
+                  "required": []
+                }
+              ],
+              "end": true
+            }
+          ]
+        },
+        "functions": [
+          {
+            "name": "choose_intent",
+            "description": "Record what the caller wants.",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "description": "What they want",
+                "enum": [
+                  "book",
+                  "cancel"
+                ]
+              }
+            },
+            "required": [
+              "intent"
+            ]
+          },
+          {
+            "name": "record_details",
+            "description": "Record name and reason.",
+            "properties": {},
+            "required": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "set_edge retargets and rewrites the description",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "add_node",
+          "name": "triage",
+          "content": "Ask what is wrong."
+        },
+        {
+          "op": "set_edge",
+          "source": "greeting",
+          "function": "choose_intent",
+          "target": "triage",
+          "description": "Only for symptoms."
+        }
+      ],
+      "expected": {
+        "agent": {
+          "name": "Test clinic",
+          "persona": "You are a scheduling assistant.",
+          "initial_node": "greeting",
+          "nodes": [
+            {
+              "name": "greeting",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Greet the caller."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "choose_intent",
+                  "description": "Only for symptoms.",
+                  "target": "triage",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "collect",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Collect name and reason."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "record_details",
+                  "description": "",
+                  "target": "confirm",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "confirm",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Confirm and say goodbye."
+                }
+              ],
+              "edges": [],
+              "end": true
+            },
+            {
+              "name": "triage",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Ask what is wrong."
+                }
+              ],
+              "edges": [],
+              "end": false
+            }
+          ]
+        },
+        "functions": [
+          {
+            "name": "choose_intent",
+            "description": "Record what the caller wants.",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "description": "What they want",
+                "enum": [
+                  "book",
+                  "cancel"
+                ]
+              }
+            },
+            "required": [
+              "intent"
+            ]
+          },
+          {
+            "name": "record_details",
+            "description": "Record name and reason.",
+            "properties": {},
+            "required": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "text is trimmed",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "set_persona",
+          "content": "  Be kind.  "
+        },
+        {
+          "op": "set_task",
+          "node": "collect",
+          "content": "\n Ask for the name. \n"
+        }
+      ],
+      "expected": {
+        "agent": {
+          "name": "Test clinic",
+          "persona": "Be kind.",
+          "initial_node": "greeting",
+          "nodes": [
+            {
+              "name": "greeting",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Greet the caller."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "choose_intent",
+                  "description": "When they say what they want.",
+                  "target": "collect",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "collect",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Ask for the name."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "record_details",
+                  "description": "",
+                  "target": "confirm",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "confirm",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Confirm and say goodbye."
+                }
+              ],
+              "edges": [],
+              "end": true
+            }
+          ]
+        },
+        "functions": [
+          {
+            "name": "choose_intent",
+            "description": "Record what the caller wants.",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "description": "What they want",
+                "enum": [
+                  "book",
+                  "cancel"
+                ]
+              }
+            },
+            "required": [
+              "intent"
+            ]
+          },
+          {
+            "name": "record_details",
+            "description": "Record name and reason.",
+            "properties": {},
+            "required": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "add_function cleans fields and drops unknown required",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "add_function",
+          "name": "take_card",
+          "description": " Card details. ",
+          "properties": {
+            "last4": {
+              "type": "number",
+              "description": "Last digits",
+              "enum": []
+            }
+          },
+          "required": [
+            "last4",
+            "ghost"
+          ]
+        }
+      ],
+      "expected": {
+        "agent": {
+          "name": "Test clinic",
+          "persona": "You are a scheduling assistant.",
+          "initial_node": "greeting",
+          "nodes": [
+            {
+              "name": "greeting",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Greet the caller."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "choose_intent",
+                  "description": "When they say what they want.",
+                  "target": "collect",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "collect",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Collect name and reason."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "record_details",
+                  "description": "",
+                  "target": "confirm",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "confirm",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Confirm and say goodbye."
+                }
+              ],
+              "edges": [],
+              "end": true
+            }
+          ]
+        },
+        "functions": [
+          {
+            "name": "choose_intent",
+            "description": "Record what the caller wants.",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "description": "What they want",
+                "enum": [
+                  "book",
+                  "cancel"
+                ]
+              }
+            },
+            "required": [
+              "intent"
+            ]
+          },
+          {
+            "name": "record_details",
+            "description": "Record name and reason.",
+            "properties": {},
+            "required": []
+          },
+          {
+            "name": "take_card",
+            "description": "Card details.",
+            "properties": {
+              "last4": {
+                "type": "string",
+                "description": "Last digits"
+              }
+            },
+            "required": [
+              "last4"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "add_function replaces a function with the same name",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "add_function",
+          "name": "record_details",
+          "description": "New wording.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "expected": {
+        "agent": {
+          "name": "Test clinic",
+          "persona": "You are a scheduling assistant.",
+          "initial_node": "greeting",
+          "nodes": [
+            {
+              "name": "greeting",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Greet the caller."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "choose_intent",
+                  "description": "When they say what they want.",
+                  "target": "collect",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "collect",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Collect name and reason."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "record_details",
+                  "description": "",
+                  "target": "confirm",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "confirm",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Confirm and say goodbye."
+                }
+              ],
+              "edges": [],
+              "end": true
+            }
+          ]
+        },
+        "functions": [
+          {
+            "name": "choose_intent",
+            "description": "Record what the caller wants.",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "description": "What they want",
+                "enum": [
+                  "book",
+                  "cancel"
+                ]
+              }
+            },
+            "required": [
+              "intent"
+            ]
+          },
+          {
+            "name": "record_details",
+            "description": "New wording.",
+            "properties": {},
+            "required": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "set_initial and set_end",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "set_initial",
+          "node": "collect"
+        },
+        {
+          "op": "set_end",
+          "node": "greeting",
+          "end": true
+        }
+      ],
+      "expected": {
+        "agent": {
+          "name": "Test clinic",
+          "persona": "You are a scheduling assistant.",
+          "initial_node": "collect",
+          "nodes": [
+            {
+              "name": "greeting",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Greet the caller."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "choose_intent",
+                  "description": "When they say what they want.",
+                  "target": "collect",
+                  "properties": {},
+                  "required": []
+                }
+              ],
+              "end": true
+            },
+            {
+              "name": "collect",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Collect name and reason."
+                }
+              ],
+              "edges": [
+                {
+                  "function": "record_details",
+                  "description": "",
+                  "target": "confirm",
+                  "properties": {},
+                  "required": []
+                }
+              ]
+            },
+            {
+              "name": "confirm",
+              "task_messages": [
+                {
+                  "role": "developer",
+                  "content": "Confirm and say goodbye."
+                }
+              ],
+              "edges": [],
+              "end": true
+            }
+          ]
+        },
+        "functions": [
+          {
+            "name": "choose_intent",
+            "description": "Record what the caller wants.",
+            "properties": {
+              "intent": {
+                "type": "string",
+                "description": "What they want",
+                "enum": [
+                  "book",
+                  "cancel"
+                ]
+              }
+            },
+            "required": [
+              "intent"
+            ]
+          },
+          {
+            "name": "record_details",
+            "description": "Record name and reason.",
+            "properties": {},
+            "required": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "an unknown step is an error",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "set_task",
+          "node": "nowhere",
+          "content": "x"
+        }
+      ],
+      "error": "Unknown step 'nowhere'"
+    },
+    {
+      "name": "a duplicate step is an error",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "add_node",
+          "name": "greeting",
+          "content": "x"
+        }
+      ],
+      "error": "already exists"
+    },
+    {
+      "name": "an invalid step name is an error",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "add_node",
+          "name": "bad name!",
+          "content": "x"
+        }
+      ],
+      "error": "Invalid step name"
+    },
+    {
+      "name": "an invalid function name is an error",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "add_edge",
+          "source": "greeting",
+          "function": "bad fn",
+          "target": "confirm"
+        }
+      ],
+      "error": "Invalid function name"
+    },
+    {
+      "name": "a named function used twice on a step is an error",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "add_edge",
+          "source": "greeting",
+          "function": "choose_intent",
+          "target": "confirm"
+        }
+      ],
+      "error": "already uses 'choose_intent'"
+    },
+    {
+      "name": "editing a missing arrow is an error",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "set_edge",
+          "source": "greeting",
+          "function": "record_caller_info",
+          "target": "confirm"
+        }
+      ],
+      "error": "has no arrow 'record_caller_info'"
+    },
+    {
+      "name": "an unknown op is an error",
+      "document": {
+        "name": "Test clinic",
+        "persona": "You are a scheduling assistant.",
+        "initial_node": "greeting",
+        "nodes": [
+          {
+            "name": "greeting",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Greet the caller."
+              }
+            ],
+            "edges": [
+              {
+                "function": "choose_intent",
+                "description": "When they say what they want.",
+                "target": "collect",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "collect",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Collect name and reason."
+              }
+            ],
+            "edges": [
+              {
+                "function": "record_details",
+                "description": "",
+                "target": "confirm",
+                "properties": {},
+                "required": []
+              }
+            ]
+          },
+          {
+            "name": "confirm",
+            "task_messages": [
+              {
+                "role": "developer",
+                "content": "Confirm and say goodbye."
+              }
+            ],
+            "edges": [],
+            "end": true
+          }
+        ]
+      },
+      "catalog": [
+        {
+          "name": "choose_intent",
+          "description": "Record what the caller wants.",
+          "properties": {
+            "intent": {
+              "type": "string",
+              "description": "What they want",
+              "enum": [
+                "book",
+                "cancel"
+              ]
+            }
+          },
+          "required": [
+            "intent"
+          ]
+        },
+        {
+          "name": "record_details",
+          "description": "Record name and reason.",
+          "properties": {},
+          "required": []
+        }
+      ],
+      "ops": [
+        {
+          "op": "explode"
+        }
+      ],
+      "error": "Unknown op 'explode'"
+    }
+  ]
+}

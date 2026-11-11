@@ -3,7 +3,7 @@
 
 PROJECT := backend
 
-.PHONY: help install run api web demo-reset clean
+.PHONY: help install run api web test demo-reset clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -20,6 +20,10 @@ api: ## Serve the agent API (http://localhost:8000)
 
 web: ## Run the editor (http://localhost:5173)
 	npm --prefix frontend run dev
+
+test: ## Run the backend tests (pytest) and the frontend tests (vitest)
+	uv run --directory $(PROJECT) pytest -q
+	npm --prefix frontend test
 
 demo-reset: ## Put the demo agent, catalog, call checks, and history back to the committed state
 	git checkout -- $(PROJECT)/data/agents/prosper-scheduler/agent.json $(PROJECT)/data/agents/prosper-scheduler/sample_calls.json $(PROJECT)/data/functions.json

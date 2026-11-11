@@ -1,4 +1,4 @@
-import type { AgentDocument, AgentEdge, AgentNode } from "../editor/agentDocument";
+import type { AgentDocument, AgentEdge, AgentNode, EdgeField } from "../editor/agentDocument";
 import type { FunctionTemplate } from "../function-catalog/functionTemplate";
 import { isPlainFunction, NO_FUNCTION } from "../graph-edits/plainFunction";
 import type { PatchOp } from "./patch";
@@ -17,6 +17,11 @@ const ORDER: Record<string, number> = {
     remove_node: 9,
 };
 
+/**
+ * The canvas preview of a proposal. It must change an agent exactly the way the
+ * server does (backend/domain/patch.py); contracts/patch-cases.json holds the
+ * cases both test suites run.
+ */
 export function applyOps(
     document: AgentDocument,
     ops: PatchOp[],
@@ -33,12 +38,12 @@ export function applyOps(
 
 function applyOne(agent: AgentDocument, functions: FunctionTemplate[], op: PatchOp) {
     if (op.op === "set_persona") {
-        agent.persona = op.content ?? "";
+        agent.persona = text(op.content);
         return;
     }
     if (op.op === "set_task") {
         const node = requireNode(agent, op.node);
-        node.task_messages = [{ role: "developer", content: op.content ?? "" }];
+        node.task_messages = [{ role: "developer", content: text(op.content) }];
         return;
     }
     if (op.op === "add_node") {
@@ -50,7 +55,7 @@ function applyOne(agent: AgentDocument, functions: FunctionTemplate[], op: Patch
         }
         agent.nodes.push({
             name: op.name,
-            task_messages: [{ role: "developer", content: op.content ?? "" }],
+            task_messages: [{ role: "developer", content: text(op.content) }],
             edges: [],
             end: Boolean(op.end),
         });
@@ -72,14 +77,18 @@ function applyOne(agent: AgentDocument, functions: FunctionTemplate[], op: Patch
     if (op.op === "add_edge") {
         const node = requireNode(agent, op.source);
         requireNode(agent, op.target);
-        const template = functions.find((item) => item.name === op.function);
+        if (!NAME.test(op.function ?? "")) {
+            throw new Error(`Invalid function name '${op.function}'.`);
+        }
         const functionName = uniquePlain(node, op.function);
+        const template = functions.find((item) => item.name === functionName);
+        // A catalog function owns its fields; only a function the catalog lacks carries its own.
         const edge: AgentEdge = {
             function: functionName,
-            description: op.description?.trim() || template?.description || `Continue to ${op.target}.`,
+            description: (op.description?.trim() || template?.description || `Continue to ${op.target}.`).trim(),
             target: op.target,
-            properties: structuredClone(op.properties ?? template?.properties ?? {}),
-            required: [...(op.required ?? template?.required ?? [])],
+            properties: template ? {} : structuredClone(op.properties ?? {}),
+            required: template ? [] : (op.required ?? []).filter((item) => typeof item === "string"),
         };
         node.edges = [...(node.edges ?? []), edge];
         return;
@@ -98,18 +107,22 @@ function applyOne(agent: AgentDocument, functions: FunctionTemplate[], op: Patch
         if (typeof op.description === "string") {
             edge.description = op.description;
         }
-        if (op.target) {
+        if (op.target !== undefined && op.target !== null) {
             requireNode(agent, op.target);
             edge.target = op.target;
         }
         return;
     }
     if (op.op === "add_function") {
+        if (!NAME.test(op.name ?? "")) {
+            throw new Error(`Invalid function name '${op.name}'.`);
+        }
+        const properties = cleanProperties(op.properties ?? {});
         const entry: FunctionTemplate = {
             name: op.name,
-            description: op.description ?? "",
-            properties: structuredClone(op.properties ?? {}),
-            required: [...(op.required ?? [])],
+            description: text(op.description),
+            properties,
+            required: (op.required ?? []).filter((item) => typeof item === "string" && item in properties),
         };
         const index = functions.findIndex((item) => item.name === op.name);
         if (index >= 0) {
@@ -124,11 +137,35 @@ function applyOne(agent: AgentDocument, functions: FunctionTemplate[], op: Patch
         agent.initial_node = op.node;
         return;
     }
-    nodeEnd(agent, op.node, op.end);
+    if (op.op === "set_end") {
+        requireNode(agent, op.node).end = Boolean(op.end);
+        return;
+    }
+    throw new Error(`Unknown op '${(op as { op: string }).op}'.`);
 }
 
-function nodeEnd(agent: AgentDocument, name: string, end: boolean) {
-    requireNode(agent, name).end = end;
+function text(value: string | undefined): string {
+    return typeof value === "string" ? value.trim() : "";
+}
+
+/** Every field is a string with a description and optional non-empty choices, as on the server. */
+function cleanProperties(raw: Record<string, EdgeField>): Record<string, EdgeField> {
+    const properties: Record<string, EdgeField> = {};
+    for (const [key, value] of Object.entries(raw)) {
+        if (!NAME.test(key) || typeof value !== "object" || value === null) {
+            throw new Error(`Invalid field '${key}'.`);
+        }
+        const field: EdgeField = {
+            type: "string",
+            description: typeof value.description === "string" ? value.description : "",
+        };
+        const choices = value.enum;
+        if (Array.isArray(choices) && choices.length > 0 && choices.every((choice) => typeof choice === "string" && choice)) {
+            field.enum = choices;
+        }
+        properties[key] = field;
+    }
+    return properties;
 }
 
 function requireNode(agent: AgentDocument, name: string): AgentNode {

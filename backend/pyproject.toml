@@ -23,3 +23,14 @@ dependencies = [
 # This is an application, not a distributable library — manage the environment,
 # don't build/install a package. Run modules from backend/ (bot.py, interfaces/).
 package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+
+[tool.pytest.ini_options]
+# Run from backend/: modules import as domain.*, application.*, infrastructure.*.
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-p no:anyio"
