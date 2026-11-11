@@ -1284,33 +1284,44 @@ input.agent-name {
     font-size: 0.78rem;
 }
 
+/* With no call open, the log is just the list. */
+.drawer:has(.call-log.is-list-only) {
+    width: min(360px, 100%);
+}
+
+.call-log.is-list-only {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.call-log.is-list-only .call-list {
+    border-right: 0;
+}
+
 .call-list ul {
     flex: 1;
     align-content: start;
-    gap: 4px;
+    gap: 8px;
     overflow: auto;
-    padding: 0 8px 8px;
+    margin: 0;
+    padding: 2px 12px 12px;
+    list-style: none;
 }
 
 .call-row {
-    border: 1px solid transparent;
+    border: 1px solid var(--line);
     border-radius: var(--radius);
-    transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease);
+    background: var(--surface);
+    transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
     animation: rise var(--med) var(--ease) both;
 }
 
 .call-row:hover {
-    background: var(--surface);
+    border-color: var(--line-strong);
 }
 
 .call-row.is-open {
-    border-color: var(--line);
-    background: var(--surface);
-    box-shadow: var(--shadow-sm);
-}
-
-.call-row.is-flagged {
-    border-color: color-mix(in srgb, var(--warn) 35%, var(--line));
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent-ring);
 }
 
 .call-row-main {
@@ -1470,10 +1481,53 @@ input.agent-name {
     animation: pop-in var(--med) var(--ease);
 }
 
+.flag-feedback {
+    display: grid;
+    justify-items: start;
+    gap: 8px;
+}
+
+.flag-feedback.is-flagged {
+    justify-items: stretch;
+    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--line));
+    border-radius: var(--radius);
+    background: var(--warn-soft);
+}
+
+.flag-feedback-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--warn);
+}
+
+.flag-feedback-head > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.flag-feedback-head svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+}
+
+.transcript-title {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
 .call-feedback {
     display: block;
-    width: calc(100% - 16px);
-    margin: 0 8px 8px;
+    width: 100%;
+    margin: 0;
     padding: 8px 10px;
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);

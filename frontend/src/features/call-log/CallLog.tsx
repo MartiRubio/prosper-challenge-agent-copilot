@@ -8,7 +8,7 @@ type CallLogProps = {
     log: CallLogState;
     sending: boolean;
     openCallId: string | null;
-    onOpenCall: (callId: string) => void;
+    onOpenCall: (callId: string | null) => void;
     onImprove: () => void;
     onFocusStep: (step: string) => void;
     onSimulate: (count: number) => void;
@@ -24,23 +24,23 @@ export function CallLog({ log, sending, openCallId, onOpenCall, onImprove, onFoc
     const missingFeedback = log.flagged.length - ready.length;
 
     useEffect(() => {
-        if (!open && log.calls[0]) {
-            onOpenCall(log.calls[0].id);
-        }
-    }, [open, log.calls, onOpenCall]);
-
-    useEffect(() => {
         function onKey(event: KeyboardEvent) {
-            if (event.key === "Escape") {
+            if (event.key !== "Escape") {
+                return;
+            }
+            // Escape closes the open call first, then the log.
+            if (open) {
+                onOpenCall(null);
+            } else {
                 onClose();
             }
         }
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [onClose]);
+    }, [open, onOpenCall, onClose]);
 
     return (
-        <section className="call-log" aria-label="Call log">
+        <section className={open ? "call-log" : "call-log is-list-only"} aria-label="Call log">
             <div className="call-list">
                 <header className="drawer-head">
                     <div>
@@ -99,10 +99,15 @@ export function CallLog({ log, sending, openCallId, onOpenCall, onImprove, onFoc
                             call={call}
                             open={call.id === openCallId}
                             checking={log.checking.includes(call.id)}
-                            feedback={log.flags[call.id]}
+                            flagged={log.flags[call.id] !== undefined}
                             onOpen={() => onOpenCall(call.id)}
-                            onToggleFlag={() => log.toggleFlag(call.id)}
-                            onFeedback={(text) => log.setFeedback(call.id, text)}
+                            onToggleFlag={() => {
+                                // Flagging opens the call, where you say what went wrong.
+                                if (log.flags[call.id] === undefined) {
+                                    onOpenCall(call.id);
+                                }
+                                log.toggleFlag(call.id);
+                            }}
                         />
                     ))}
                 </ul>
@@ -119,11 +124,15 @@ export function CallLog({ log, sending, openCallId, onOpenCall, onImprove, onFoc
                     {missingFeedback > 0 ? <p className="muted">Say what went wrong on every flagged call.</p> : null}
                 </footer>
             </div>
-            <div className="call-transcript">
-                {open ? (
-                    <>
+            {open ? (
+                <div className="call-transcript">
                         <header className="transcript-head">
-                            <h3>{open.title}</h3>
+                            <div className="transcript-title">
+                                <h3>{open.title}</h3>
+                                <button type="button" className="ghost-icon" aria-label="Close this call" title="Close this call" onClick={() => onOpenCall(null)}>
+                                    <X aria-hidden="true" />
+                                </button>
+                            </div>
                             <p className="muted">
                                 {SOURCE_LABEL[open.source] ?? "Call"} · {formatDate(open.started_at)}
                                 {open.start_node ? <> · started at <span className="step-chip">{open.start_node}</span></> : null}
@@ -140,6 +149,12 @@ export function CallLog({ log, sending, openCallId, onOpenCall, onImprove, onFoc
                             ) : null}
                         </header>
                         <CheckSummary call={open} checking={log.checking.includes(open.id)} onRecheck={() => log.recheck(open.id)} onFocusStep={onFocusStep} />
+                        <FlagFeedback
+                            title={open.title}
+                            feedback={log.flags[open.id]}
+                            onToggle={() => log.toggleFlag(open.id)}
+                            onFeedback={(text) => log.setFeedback(open.id, text)}
+                        />
                         <div className="transcript">
                             {open.turns.map((turn, index) => {
                                 const quoted = Boolean(open.check?.quote) && quoteMatches(turn.text, open.check?.quote ?? "");
@@ -151,12 +166,49 @@ export function CallLog({ log, sending, openCallId, onOpenCall, onImprove, onFoc
                                 );
                             })}
                         </div>
-                    </>
-                ) : (
-                    <p className="muted pad">Select a call.</p>
-                )}
-            </div>
+                </div>
+            ) : null}
         </section>
+    );
+}
+
+/** Flag the open call for the copilot, and say what went wrong. Lives in the detail view, not the list. */
+function FlagFeedback({
+    title,
+    feedback,
+    onToggle,
+    onFeedback,
+}: {
+    title: string;
+    feedback: string | undefined;
+    onToggle: () => void;
+    onFeedback: (text: string) => void;
+}) {
+    if (feedback === undefined) {
+        return (
+            <div className="flag-feedback">
+                <button type="button" className="btn btn-secondary btn-sm" onClick={onToggle}>
+                    <Flag aria-hidden="true" />
+                    Flag for the copilot
+                </button>
+            </div>
+        );
+    }
+    return (
+        <div className="flag-feedback is-flagged">
+            <div className="flag-feedback-head">
+                <span><Flag aria-hidden="true" />Flagged · what went wrong?</span>
+                <button type="button" className="link" onClick={onToggle}>Unflag</button>
+            </div>
+            <textarea
+                className="call-feedback"
+                aria-label={`Feedback for ${title}`}
+                placeholder="What should the agent have done?"
+                value={feedback}
+                rows={2}
+                onChange={(event) => onFeedback(event.target.value)}
+            />
+        </div>
     );
 }
 
@@ -164,22 +216,19 @@ function CallRow({
     call,
     open,
     checking,
-    feedback,
+    flagged,
     onOpen,
     onToggleFlag,
-    onFeedback,
 }: {
     call: LoggedCall;
     open: boolean;
     checking: boolean;
-    feedback: string | undefined;
+    flagged: boolean;
     onOpen: () => void;
     onToggleFlag: () => void;
-    onFeedback: (text: string) => void;
 }) {
-    const flagged = feedback !== undefined;
     return (
-        <li className={`call-row${open ? " is-open" : ""}${flagged ? " is-flagged" : ""}`}>
+        <li className={`call-row${open ? " is-open" : ""}`}>
             <div className="call-row-main">
                 <button type="button" className="call-open" onClick={onOpen}>
                     <strong>{call.title}</strong>
@@ -199,16 +248,6 @@ function CallRow({
                     <Flag aria-hidden="true" />
                 </button>
             </div>
-            {flagged ? (
-                <textarea
-                    className="call-feedback"
-                    aria-label={`Feedback for ${call.title}`}
-                    placeholder="What went wrong?"
-                    value={feedback}
-                    rows={2}
-                    onChange={(event) => onFeedback(event.target.value)}
-                />
-            ) : null}
         </li>
     );
 }

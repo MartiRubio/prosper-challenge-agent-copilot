@@ -292,7 +292,13 @@ export function Editor() {
                                     type="button"
                                     className="btn"
                                     aria-pressed={callLogOpen}
-                                    onClick={() => setCallLogOpen((open) => !open)}
+                                    onClick={() => {
+                                        if (!callLogOpen) {
+                                            // The log opens as a list; a call opens only when one is picked.
+                                            setOpenCallId(null);
+                                        }
+                                        setCallLogOpen((open) => !open);
+                                    }}
                                 >
                                     <MessagesSquare aria-hidden="true" />
                                     Call log
