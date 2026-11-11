@@ -48,6 +48,8 @@ export function Editor() {
         restoreVersion,
         restoredFrom,
         saveCount,
+        undo,
+        redo,
     } = useOpenAgent();
     const catalog = useFunctions();
     const { activeNode, callLive } = useCallChannel();
@@ -110,16 +112,39 @@ export function Editor() {
 
     useEffect(() => {
         function onKey(event: KeyboardEvent) {
-            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+            if (!(event.metaKey || event.ctrlKey)) {
+                return;
+            }
+            const key = event.key.toLowerCase();
+            if (key === "s") {
                 event.preventDefault();
                 if (dirty && !saving && !copilot.locked) {
                     void saveAll();
                 }
+                return;
+            }
+            // Cmd+Z / Cmd+Shift+Z (Ctrl+Z / Ctrl+Y elsewhere) undo graph edits. Inside a text
+            // field the browser's own undo still edits the text, and a pending review stays put.
+            if (key !== "z" && key !== "y") {
+                return;
+            }
+            const target = event.target;
+            if (target instanceof HTMLElement && target.closest("input, textarea, select, [contenteditable='true']")) {
+                return;
+            }
+            if (copilot.locked) {
+                return;
+            }
+            event.preventDefault();
+            if (key === "y" || event.shiftKey) {
+                redo();
+            } else {
+                undo();
             }
         }
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [dirty, saving, saveAll, copilot.locked]);
+    }, [dirty, saving, saveAll, copilot.locked, undo, redo]);
 
     // A click anywhere outside the step editor closes it; a click on another step switches to it.
     useEffect(() => {
