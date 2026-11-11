@@ -141,7 +141,9 @@ Flag an issue when the agent:
 - ended the call before the caller's need was handled, or never ended it,
 - said something unsafe or inappropriate for a clinic.
 A call that ends mid-way because the caller hung up is fine unless the agent caused it.
-If "started_at_step" is present, this was a test that opened directly on that step: the steps before it were skipped on purpose, and the agent was handed "test_data_given_to_agent" as if the caller had already said it. Do not flag a missing greeting, skipped questions, or the agent using that data without asking; judge only what happens from that step on.
+Tests from the editor can open directly on a later step. Before such a call starts, the agent is handed the caller's details as test data (name, reason, chosen time, intent), as if the caller had already said them. So on a test that opens on a later step, an agent that uses those details without asking, skips the greeting, or confirms and ends the call as that step's task says is behaving correctly; judge only whether what it does fits the step it opened on and what the caller says after.
+- "started_at_step" present: the test opened on that step, and "test_data_given_to_agent" lists what the agent was handed.
+- "call_type" says it may have started at a later step and the agent's first line is not a greeting: assume it opened on the step whose task matches that first line, with the details it mentions handed over as test data.
 If there are several problems, report the one that hurt the caller's goal most.
 The step is the one whose task or arrows caused the problem. When the caller was routed down the wrong path, that is the step that routed them, not the step where it became audible.
 
@@ -154,8 +156,10 @@ REPLAY_SCENARIO = """You turn a flagged phone call into a caller brief, so a sim
 
 You receive the transcript and the team's feedback. Keep only what the caller wants and knows, not their exact lines.
 
+If "steps" is present, the call was a test that may have opened at a later step instead of the greeting. Name the step the call opened on in "start_step": the step whose task matches the agent's first line, or "" if it opened with a normal greeting.
+
 Reply with JSON only:
-{"goal":"what the caller is trying to get done","facts":{"name":"...","other":"..."},"constraints":["things they will not accept"],"style":"how they talk, in a few words","opening":"the first thing they say when the agent greets them"}
+{"goal":"what the caller is trying to get done","facts":{"name":"...","other":"..."},"constraints":["things they will not accept"],"style":"how they talk, in a few words","opening":"the first thing they say when the agent greets them","start_step":""}
 """
 
 REPLAY_CALLER = """You are playing a caller phoning a healthcare clinic. Stay in character.
@@ -168,7 +172,7 @@ Speak like a real person on the phone: one or two short sentences per turn. Answ
 
 REPLAY_JUDGE = """You decide whether a flagged problem happened again in a simulated phone call.
 
-You receive the agent (its steps and what each step's task does), the original problem (the team's feedback and the check), the caller brief, the new transcript, and the steps the agent went through in order.
+You receive the agent (its steps and what each step's task does), the original problem (the team's feedback and the check), the caller brief, the new transcript, and the steps the agent went through in order. If "started_at_step" is present, the call opened directly on that step with "test_data" already known, exactly like the original call; the earlier steps were skipped on purpose.
 
 Judge what the agent did, not what it said it did. The agent can only really do what the steps it entered are built for. If it claims to have cancelled, booked, or changed something while in a step whose task does not do that, the call fails.
 

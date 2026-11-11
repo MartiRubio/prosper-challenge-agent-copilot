@@ -17,7 +17,7 @@ import {
     X,
 } from "lucide-react";
 
-import type { Attachment, ReplayResult, ReplayRun } from "../../api/copilot";
+import type { Attachment, FlaggedCall, ReplayResult, ReplayRun } from "../../api/copilot";
 import type { AgentDocument } from "../editor/agentDocument";
 import { describeChange } from "./describeChange";
 import type { FocusChip } from "./focus";
@@ -562,7 +562,10 @@ function ReplayPanel({
             <header>
                 <div>
                     <h3>Does the fix hold?</h3>
-                    <p className="muted">A simulated caller with the same goal calls the agent before and after.</p>
+                    <p className="muted">
+                        A simulated caller with the same goal as each flagged call phones the agent twice: as it was before this change, and as it is now.
+                        Neither run is the original call.
+                    </p>
                 </div>
                 <button
                     type="button"
@@ -575,7 +578,9 @@ function ReplayPanel({
                 </button>
             </header>
             {replay?.status === "error" ? <p className="error">{replay.error}</p> : null}
-            {results.map((result) => <ReplayRow key={result.call_id} result={result} />)}
+            {results.map((result) => (
+                <ReplayRow key={result.call_id} result={result} original={request.calls.find((call) => call.id === result.call_id)} />
+            ))}
             {failing > 0 ? (
                 <button type="button" className="btn btn-ai" onClick={() => onSendFailures(request.id)}>
                     <Sparkles aria-hidden="true" />
@@ -586,15 +591,20 @@ function ReplayPanel({
     );
 }
 
-function ReplayRow({ result }: { result: ReplayResult }) {
-    const [open, setOpen] = useState<"before" | "after" | null>(null);
-    const run = open ? result[open] : null;
+function ReplayRow({ result, original }: { result: ReplayResult; original?: FlaggedCall }) {
+    const [open, setOpen] = useState<"original" | "before" | "after" | null>(null);
+    const run = open === "before" || open === "after" ? result[open] : null;
     return (
         <div className="replay-row">
             <p className="replay-title">{result.title}</p>
             {result.brief.goal ? <p className="muted replay-goal">Caller: {result.brief.goal}</p> : null}
+            {result.brief.start_step ? (
+                <p className="muted replay-goal">
+                    Starts at <span className="step-chip">{result.brief.start_step}</span>, like the original call
+                </p>
+            ) : null}
             <div className="replay-runs">
-                <RunBadge label="Before" run={result.before} open={open === "before"} onToggle={() => setOpen(open === "before" ? null : "before")} />
+                <RunBadge label="Before the change" run={result.before} open={open === "before"} onToggle={() => setOpen(open === "before" ? null : "before")} />
                 <ArrowRight className="replay-arrow" aria-hidden="true" />
                 <RunBadge label="After" run={result.after} open={open === "after"} onToggle={() => setOpen(open === "after" ? null : "after")} />
             </div>
@@ -605,11 +615,16 @@ function ReplayRow({ result }: { result: ReplayResult }) {
                 onClick={() => setOpen(open ? null : "after")}
             >
                 <ChevronRight className={open ? "coverage-chevron is-open" : "coverage-chevron"} aria-hidden="true" />
-                {open ? "Hide the simulated calls" : "Read the simulated calls"}
+                {open ? "Hide the calls" : "Read the calls"}
             </button>
-            {run && open ? (
+            {open ? (
                 <div className="replay-detail">
                     <div className="segmented replay-tabs" role="tablist">
+                        {original ? (
+                            <button type="button" role="tab" aria-selected={open === "original"} onClick={() => setOpen("original")}>
+                                Original
+                            </button>
+                        ) : null}
                         <button type="button" role="tab" aria-selected={open === "before"} onClick={() => setOpen("before")}>
                             {result.before.passed ? <CircleCheck aria-hidden="true" /> : <CircleX aria-hidden="true" />}
                             Before
@@ -619,26 +634,47 @@ function ReplayRow({ result }: { result: ReplayResult }) {
                             After
                         </button>
                     </div>
-                    <p className={run.passed ? "replay-reason is-pass" : "replay-reason is-fail"}>
-                        <strong>{run.passed ? "Passed." : "Failed."}</strong> {run.reason}
-                    </p>
-                    <div className="replay-path">
-                        {run.path.map((step, i) => (
-                            <span key={`${step}-${i}`}>
-                                {i > 0 ? <ArrowRight aria-hidden="true" /> : null}
-                                <span className="step-chip">{step}</span>
-                            </span>
-                        ))}
-                    </div>
-                    <div className="mini-transcript" key={open}>
-                        {run.transcript.map((turn, i) => (
-                            <p key={i} className={`turn turn-${turn.role}`} style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
-                                <span>{turn.role === "agent" ? `Agent${turn.step ? ` · ${turn.step}` : ""}` : "Simulated caller"}</span>
-                                {turn.text}
+                    {open === "original" && original ? (
+                        <>
+                            <p className="replay-reason">
+                                The call you flagged. <span className="muted">Feedback: {original.feedback}</span>
                             </p>
-                        ))}
-                        <p className="replay-ended">{endedLabel(run.ended)}</p>
-                    </div>
+                            <div className="mini-transcript" key="original">
+                                {original.turns.map((turn, i) => (
+                                    <p key={i} className={`turn turn-${turn.role}`} style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
+                                        <span>{turn.role === "agent" ? "Agent" : "Caller"}</span>
+                                        {turn.text}
+                                    </p>
+                                ))}
+                            </div>
+                        </>
+                    ) : null}
+                    {run ? (
+                        <>
+                            <p className={run.passed ? "replay-reason is-pass" : "replay-reason is-fail"}>
+                                <strong>{run.passed ? "Passed." : "Failed."}</strong>{" "}
+                                {open === "before" ? "Simulated call to the agent before this change. " : "Simulated call to the agent as it is now. "}
+                                {run.reason}
+                            </p>
+                            <div className="replay-path">
+                                {run.path.map((step, i) => (
+                                    <span key={`${step}-${i}`}>
+                                        {i > 0 ? <ArrowRight aria-hidden="true" /> : null}
+                                        <span className="step-chip">{step}</span>
+                                    </span>
+                                ))}
+                            </div>
+                            <div className="mini-transcript" key={open}>
+                                {run.transcript.map((turn, i) => (
+                                    <p key={i} className={`turn turn-${turn.role}`} style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
+                                        <span>{turn.role === "agent" ? `Agent${turn.step ? ` · ${turn.step}` : ""}` : "Simulated caller"}</span>
+                                        {turn.text}
+                                    </p>
+                                ))}
+                                <p className="replay-ended">{endedLabel(run.ended)}</p>
+                            </div>
+                        </>
+                    ) : null}
                 </div>
             ) : null}
         </div>

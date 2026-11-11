@@ -15,7 +15,6 @@ def list_calls(agent_id: str) -> list[dict]:
     listed = []
     for call in calls:
         item = {key: value for key, value in call.items() if key != "agent"}
-        item.setdefault("source", "sample")
         item["check"] = checks.get(call.get("id"))
         listed.append(item)
     listed.sort(key=lambda item: item.get("started_at") or "", reverse=True)

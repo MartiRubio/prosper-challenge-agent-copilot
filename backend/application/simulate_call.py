@@ -17,13 +17,26 @@ _HANG_UP = "[HANG UP]"
 _MAX_HOPS = 3
 
 
-def simulate_call(agent: dict, catalog: dict[str, dict], brief: dict, max_exchanges: int = 8) -> dict:
+def simulate_call(
+    agent: dict,
+    catalog: dict[str, dict],
+    brief: dict,
+    start_node: str | None = None,
+    known: dict[str, str] | None = None,
+    max_exchanges: int = 8,
+) -> dict:
+    """Start where the original call started; a test from a later step also hands over its test data."""
     nodes = {node.get("name"): node for node in agent.get("nodes") or [] if isinstance(node, dict)}
-    current = agent.get("initial_node")
+    current = start_node if start_node in nodes else agent.get("initial_node")
     if current not in nodes:
         return {"transcript": [], "path": [], "ended": "no_start"}
     persona = agent.get("persona") or ""
     messages: list[dict] = []
+    if current != agent.get("initial_node") and known:
+        # Mirrors application.caller_data.share_caller_data on a live call.
+        facts = ", ".join(f"{key} is {value}" for key, value in known.items())
+        messages.append({"role": "system", "content": persona})
+        messages.append({"role": "developer", "content": f"Known caller data for this test: {facts}."})
     _enter(messages, nodes[current], persona)
     path = [current]
     transcript: list[dict] = []

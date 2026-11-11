@@ -17,9 +17,11 @@ CHECKS_DIR = _BACKEND / "logs" / "call_checks"
 
 
 def read_calls(agent_id: str) -> list[dict]:
+    """Sample calls stand in for production; anything the voice runner recorded is a test call."""
     agent_path(agent_id)
-    calls = _read_list(SAMPLE_DIR / f"{agent_id}.json") + _read_list(RECORDED_DIR / f"{agent_id}.json")
-    return [call for call in calls if call.get("agent_id") == agent_id]
+    samples = [{"source": "production", **call} for call in _read_list(SAMPLE_DIR / f"{agent_id}.json")]
+    recorded = [{**call, "source": "test"} for call in _read_list(RECORDED_DIR / f"{agent_id}.json")]
+    return [call for call in samples + recorded if call.get("agent_id") == agent_id]
 
 
 def find_call(agent_id: str, call_id: str) -> dict | None:

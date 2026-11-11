@@ -140,7 +140,17 @@ export function useCallLog(agentId: string | null, callLive: boolean) {
         if (feedback === undefined) {
             return [];
         }
-        return [{ id: call.id, agent_id: call.agent_id, title: call.title, feedback, turns: call.turns, check: call.check }];
+        return [{
+            id: call.id,
+            agent_id: call.agent_id,
+            title: call.title,
+            feedback,
+            turns: call.turns,
+            check: call.check,
+            source: call.source,
+            start_node: call.start_node,
+            test_data: call.test_data,
+        }];
     });
     const issues = calls.filter((call) => call.check?.status === "issue").length;
 

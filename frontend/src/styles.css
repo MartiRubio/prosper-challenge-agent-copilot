@@ -2776,7 +2776,8 @@ button.chip:not(.is-fixed):hover {
 }
 
 .replay-tabs {
-    max-width: 220px;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    max-width: 300px;
 }
 
 .replay-tabs button svg {

@@ -27,7 +27,7 @@ def replay_calls(body: dict) -> list[dict]:
     catalog = _catalog(body.get("catalog"))
 
     with ThreadPoolExecutor(max_workers=8) as pool:
-        briefs = list(pool.map(_brief, calls))
+        briefs = list(pool.map(lambda call: _brief(call, before), calls))
         runs = {
             (index, label): pool.submit(_run, agent, catalog, briefs[index], call)
             for index, call in enumerate(calls)
@@ -54,17 +54,36 @@ def _catalog(raw: object) -> dict[str, dict]:
     return catalog
 
 
-def _brief(call: dict) -> dict:
-    return complete_json(REPLAY_SCENARIO, json.dumps({
-        "feedback": call.get("feedback") or "",
-        "transcript": call.get("turns") or [],
-    }, indent=2), temperature=0)
+def _brief(call: dict, agent: dict) -> dict:
+    payload: dict = {"feedback": call.get("feedback") or "", "transcript": call.get("turns") or []}
+    guess_start = call.get("source") == "test" and not call.get("start_node")
+    if guess_start:
+        payload["steps"] = [
+            {"name": step["name"], "task": step["task"]} for step in brief_agent(agent)["nodes"]
+        ]
+    brief = complete_json(REPLAY_SCENARIO, json.dumps(payload, indent=2), temperature=0)
+    start = call.get("start_node") if isinstance(call.get("start_node"), str) else ""
+    if not start and guess_start and isinstance(brief.get("start_step"), str):
+        start = brief["start_step"]
+    brief["start_step"] = start
+    return brief
+
+
+def _start(call: dict, brief: dict) -> tuple[str | None, dict[str, str]]:
+    start = brief.get("start_step") or None
+    known = call.get("test_data") if isinstance(call.get("test_data"), dict) else {}
+    if start and not known:
+        facts = brief.get("facts") if isinstance(brief.get("facts"), dict) else {}
+        known = {str(key): str(value) for key, value in facts.items() if value}
+    return start, known
 
 
 def _run(agent: dict, catalog: dict[str, dict], brief: dict, call: dict) -> dict:
-    simulation = simulate_call(agent, catalog, brief)
+    start, known = _start(call, brief)
+    simulation = simulate_call(agent, catalog, brief, start, known)
     verdict = complete_json(REPLAY_JUDGE, json.dumps({
         "agent": brief_agent(agent),
+        **({"started_at_step": start, "test_data": known} if start else {}),
         "feedback": call.get("feedback") or "",
         "check": call.get("check"),
         "brief": brief,

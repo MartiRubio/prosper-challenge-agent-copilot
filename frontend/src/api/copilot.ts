@@ -40,6 +40,9 @@ export type FlaggedCall = {
     feedback: string;
     turns: CallTurn[];
     check?: CallCheck | null;
+    source?: LoggedCall["source"];
+    start_node?: string;
+    test_data?: Record<string, string>;
 };
 
 export type Attachment = {
@@ -75,7 +78,7 @@ export type ReplayRun = {
 export type ReplayResult = {
     call_id: string;
     title: string;
-    brief: { goal?: string };
+    brief: { goal?: string; start_step?: string };
     before: ReplayRun;
     after: ReplayRun;
 };

@@ -44,6 +44,9 @@ def _started_mid_graph(call: dict) -> dict:
     """A test call started from a later step skips the earlier ones on purpose."""
     start = call.get("start_node")
     if not isinstance(start, str) or not start:
+        if call.get("source") == "test":
+            # Older test calls did not record where they started.
+            return {"call_type": "test call placed from the editor; it may have started at a later step"}
         return {}
     return {
         "started_at_step": start,
