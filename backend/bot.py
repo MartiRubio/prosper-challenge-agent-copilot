@@ -118,7 +118,9 @@ async def run_bot(
             return
         saved = True
         try:
-            record_call(agent_id, context.get_messages())
+            body = getattr(runner_args, "body", None)
+            agent = body.get("agent") if isinstance(body, dict) else None
+            record_call(agent_id, context.get_messages(), agent)
         except Exception:
             logger.exception("Could not save the call log")
 

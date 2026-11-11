@@ -1,10 +1,10 @@
-"""Rewrite the spoken text of one step."""
+"""Rewrite the spoken task of one step."""
 
 import json
 
-from application.copilot_edit import _brief_agent
-from application.openai_json import complete_json
+from application.agent_brief import brief_agent
 from application.prompts import NODE_REWRITE
+from infrastructure.openai_client import complete_json
 
 
 def rewrite_task(body: dict) -> dict:
@@ -18,7 +18,7 @@ def rewrite_task(body: dict) -> dict:
         "node": node.strip(),
         "content": content,
         "message": message.strip(),
-        "agent": _brief_agent(agent),
+        "agent": brief_agent(agent),
     }, indent=2)
     data = complete_json(NODE_REWRITE, user)
     text = data.get("content")

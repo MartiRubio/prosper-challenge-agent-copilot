@@ -1,17 +1,14 @@
-"""Save the spoken turns of a finished test call. One file per agent."""
+"""Save the spoken turns of a finished test call, with the graph it ran."""
 
-import json
 from datetime import datetime, timezone
-from pathlib import Path
 
 from loguru import logger
 
 from infrastructure.agent_files import InvalidAgentId, agent_path
+from infrastructure.call_files import append_recorded
 
-_CALLS_DIR = Path(__file__).resolve().parent.parent / "logs" / "calls"
 
-
-def record_call(agent_id: str | None, messages: list) -> None:
+def record_call(agent_id: str | None, messages: list, agent: dict | None = None) -> None:
     if not agent_id:
         logger.warning("Call log skipped: the session had no agent id.")
         return
@@ -25,28 +22,18 @@ def record_call(agent_id: str | None, messages: list) -> None:
         logger.warning(f"Call log skipped: no spoken turns in {len(messages)} messages.")
         return
     stamp = datetime.now(timezone.utc)
-    started = stamp.strftime("%Y-%m-%dT%H:%M:%SZ")
     call = {
         "id": f"call-{stamp.strftime('%Y%m%dT%H%M%S%fZ')}",
         "agent_id": agent_id,
         "title": _title(turns),
-        "started_at": started,
+        "started_at": stamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "source": "test",
         "turns": turns,
     }
-    path = _path(agent_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    current = _read(path)
-    current.append(call)
-    path.write_text(json.dumps(current, indent=2))
+    if isinstance(agent, dict):
+        call["agent"] = agent
+    path = append_recorded(agent_id, call)
     logger.info(f"Saved {len(turns)} turns for {agent_id} to {path.name}")
-
-
-def read_recorded(agent_id: str) -> list[dict]:
-    try:
-        agent_path(agent_id)
-    except InvalidAgentId:
-        return []
-    return [item for item in _read(_path(agent_id)) if item.get("agent_id") == agent_id]
 
 
 def spoken_turns(messages: list) -> list[dict]:
@@ -72,22 +59,6 @@ def _title(turns: list[dict]) -> str:
     if len(caller) <= 48:
         return caller
     return caller[:45].rstrip() + "..."
-
-
-def _path(agent_id: str) -> Path:
-    return _CALLS_DIR / f"{agent_id}.json"
-
-
-def _read(path: Path) -> list[dict]:
-    if not path.is_file():
-        return []
-    try:
-        data = json.loads(path.read_text())
-    except json.JSONDecodeError:
-        return []
-    if not isinstance(data, list):
-        return []
-    return [item for item in data if isinstance(item, dict)]
 
 
 def _role_and_content(message: object) -> tuple[object, object]:

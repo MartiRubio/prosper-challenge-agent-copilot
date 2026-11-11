@@ -16,6 +16,7 @@ dependencies = [
     # Agent API. Also pulled in by the Pipecat runner; declared here because we import it.
     "fastapi>=0.115,<1",
     "uvicorn>=0.32,<1",
+    "pypdf>=7.0.1",
 ]
 
 [tool.uv]

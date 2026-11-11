@@ -3,6 +3,7 @@
 from loguru import logger
 from pipecat_flows.exceptions import FlowError
 
+from application.caller_data import caller_fields, share_caller_data
 from application.track_active_node import track_active_node
 
 
@@ -15,12 +16,7 @@ def read_jump(message: object) -> tuple[str, dict[str, str]] | None:
     payload = data.get("d")
     if not isinstance(payload, dict) or not isinstance(payload.get("node"), str):
         return None
-    raw = payload.get("data")
-    fields: dict[str, str] = {}
-    if isinstance(raw, dict):
-        for key, value in raw.items():
-            if isinstance(key, str) and isinstance(value, str) and value.strip():
-                fields[key] = value.strip()
+    fields = caller_fields(payload.get("data"))
     return payload["node"], fields
 
 
@@ -33,13 +29,7 @@ async def jump_to_node(flow_manager, context, builder, message: object) -> None:
     if config is None:
         logger.info("Jump ignored, unknown node {}", node_name)
         return
-    if data:
-        flow_manager.state.update(data)
-        known = ", ".join(f"{key} is {value}" for key, value in data.items())
-        context.add_message({
-            "role": "developer",
-            "content": f"Known caller data for this test: {known}.",
-        })
+    share_caller_data(data, flow_manager, context)
     try:
         await flow_manager.set_node_from_config(config)
     except FlowError:

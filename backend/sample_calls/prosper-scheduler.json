@@ -1,0 +1,105 @@
+[
+  {
+    "id": "cancel-offered-time",
+    "agent_id": "prosper-scheduler",
+    "title": "Caller wanted to cancel",
+    "started_at": "2026-11-02T15:04:00Z",
+    "turns": [
+      {
+        "role": "agent",
+        "text": "Hi, this is the clinic scheduling line. Would you like to book, reschedule, or cancel?"
+      },
+      {
+        "role": "caller",
+        "text": "I need to cancel my appointment on Thursday."
+      },
+      {
+        "role": "agent",
+        "text": "I can help. What is your full name, and what is the reason for the visit?"
+      },
+      {
+        "role": "caller",
+        "text": "Maya Chen. I don't need a visit. I need to cancel."
+      },
+      {
+        "role": "agent",
+        "text": "I have Tuesday at 10 AM or Thursday at 2 PM. Which works for you?"
+      }
+    ],
+    "source": "production"
+  },
+  {
+    "id": "booked-tuesday",
+    "agent_id": "prosper-scheduler",
+    "title": "Booked Tuesday",
+    "started_at": "2026-11-03T09:12:00Z",
+    "turns": [
+      {
+        "role": "agent",
+        "text": "Hi, this is the clinic scheduling line. Would you like to book, reschedule, or cancel?"
+      },
+      {
+        "role": "caller",
+        "text": "I'd like to book a checkup."
+      },
+      {
+        "role": "agent",
+        "text": "What is your full name, and what is the reason for the visit?"
+      },
+      {
+        "role": "caller",
+        "text": "Luis Ortega, annual checkup."
+      },
+      {
+        "role": "agent",
+        "text": "Tuesday at 10 AM or Thursday at 2 PM?"
+      },
+      {
+        "role": "caller",
+        "text": "Tuesday at 10."
+      },
+      {
+        "role": "agent",
+        "text": "You are booked for Tuesday at 10 AM, Luis. Thank you, goodbye."
+      }
+    ],
+    "source": "production"
+  },
+  {
+    "id": "chest-pain-booked",
+    "agent_id": "prosper-scheduler",
+    "title": "Chest pain, booked for Tuesday",
+    "started_at": "2026-11-04T11:40:00Z",
+    "source": "production",
+    "turns": [
+      {
+        "role": "agent",
+        "text": "Hi, this is the clinic scheduling line. Would you like to book, reschedule, or cancel?"
+      },
+      {
+        "role": "caller",
+        "text": "I want to see a doctor today. I've had a tight pain in my chest since this morning."
+      },
+      {
+        "role": "agent",
+        "text": "I can help you book. What is your full name, and what is the reason for the visit?"
+      },
+      {
+        "role": "caller",
+        "text": "Robert Hale. The chest pain. It's going down my left arm now."
+      },
+      {
+        "role": "agent",
+        "text": "Thanks, Robert. I have Tuesday at 10 AM or Thursday at 2 PM. Which works for you?"
+      },
+      {
+        "role": "caller",
+        "text": "Tuesday, I guess."
+      },
+      {
+        "role": "agent",
+        "text": "You are booked for Tuesday at 10 AM, Robert. Thank you, goodbye."
+      }
+    ]
+  }
+]

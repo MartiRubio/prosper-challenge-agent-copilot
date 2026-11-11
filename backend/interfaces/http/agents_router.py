@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Body, HTTPException
 
+from application.agent_versions import UnknownVersion, get_version, list_versions
 from application.create_agent import create_agent
 from application.delete_agent import delete_agent
 from application.get_agent import get_agent
@@ -58,3 +59,23 @@ def put_agent(agent_id: str, document: dict) -> dict:
         raise HTTPException(status_code=400, detail=f"Invalid agent id '{agent_id}'.") from None
     except (KeyError, TypeError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from None
+
+
+@router.get("/{agent_id}/versions")
+def read_versions(agent_id: str) -> list[dict]:
+    try:
+        return list_versions(agent_id)
+    except UnknownAgent:
+        raise HTTPException(status_code=404, detail=f"Unknown agent '{agent_id}'.") from None
+    except InvalidAgentId:
+        raise HTTPException(status_code=400, detail=f"Invalid agent id '{agent_id}'.") from None
+
+
+@router.get("/{agent_id}/versions/{version_id}")
+def read_version(agent_id: str, version_id: str) -> dict:
+    try:
+        return get_version(agent_id, version_id)
+    except UnknownVersion:
+        raise HTTPException(status_code=404, detail=f"Unknown version '{version_id}'.") from None
+    except InvalidAgentId:
+        raise HTTPException(status_code=400, detail=f"Invalid agent id '{agent_id}'.") from None

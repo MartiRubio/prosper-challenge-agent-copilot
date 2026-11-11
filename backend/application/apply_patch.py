@@ -1,25 +1,8 @@
 """Apply a list of copilot ops to an agent document."""
 
 import copy
-import re
 
-from agent_builder.function_catalog import _properties as catalog_properties
-
-_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
-_PLAIN = re.compile(r"^(?:no_function|continue)(?:[-_]\d+)?$")
-# Functions and steps have to exist before any arrow names them.
-_ORDER = {
-    "add_function": 0,
-    "add_node": 1,
-    "set_persona": 2,
-    "set_task": 3,
-    "set_initial": 4,
-    "set_end": 5,
-    "add_edge": 6,
-    "set_edge": 7,
-    "remove_edge": 8,
-    "remove_node": 9,
-}
+from domain.agent_rules import clean_properties, is_plain_function, is_valid_name, op_rank
 
 
 def apply_ops(document: dict, ops: list, catalog: list) -> tuple[dict, list]:
@@ -30,10 +13,7 @@ def apply_ops(document: dict, ops: list, catalog: list) -> tuple[dict, list]:
     doc = copy.deepcopy(document)
     functions = copy.deepcopy(catalog) if isinstance(catalog, list) else []
     doc.setdefault("nodes", [])
-    ordered = sorted(
-        ops,
-        key=lambda op: _ORDER.get(op.get("op"), 50) if isinstance(op, dict) else 50,
-    )
+    ordered = sorted(ops, key=op_rank)
     for op in ordered:
         if not isinstance(op, dict):
             raise ValueError("Each op must be an object.")
@@ -82,7 +62,7 @@ def _apply(doc: dict, functions: list, op: dict) -> None:
 
 def _add_node(doc: dict, op: dict) -> None:
     name = op.get("name")
-    if not isinstance(name, str) or not _NAME.match(name):
+    if not is_valid_name(name):
         raise ValueError(f"Invalid step name '{name}'.")
     if any(node.get("name") == name for node in doc["nodes"]):
         raise ValueError(f"Step '{name}' already exists.")
@@ -114,7 +94,7 @@ def _add_edge(doc: dict, functions: list, op: dict) -> None:
     target = op.get("target")
     _require_node(doc, target)
     raw_name = op.get("function")
-    if not isinstance(raw_name, str) or not _NAME.match(raw_name):
+    if not is_valid_name(raw_name):
         raise ValueError(f"Invalid function name '{raw_name}'.")
     function = _unique_plain(node, raw_name)
     template = _template(functions, function)
@@ -160,9 +140,9 @@ def _set_edge(doc: dict, op: dict) -> None:
 
 def _add_function(functions: list, op: dict) -> None:
     name = op.get("name")
-    if not isinstance(name, str) or not _NAME.match(name):
+    if not is_valid_name(name):
         raise ValueError(f"Invalid function name '{name}'.")
-    properties = catalog_properties(op.get("properties") or {})
+    properties = clean_properties(op.get("properties") or {})
     required = op.get("required") if isinstance(op.get("required"), list) else []
     entry = {
         "name": name,
@@ -181,7 +161,7 @@ def _unique_plain(node: dict, name: str) -> str:
     used = {edge.get("function") for edge in node.get("edges") or []}
     if name not in used:
         return name
-    if not _PLAIN.match(name):
+    if not is_plain_function(name):
         raise ValueError(f"Step '{node['name']}' already uses '{name}'.")
     index = 2
     while f"{name}_{index}" in used:

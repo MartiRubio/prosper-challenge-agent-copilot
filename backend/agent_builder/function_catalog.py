@@ -5,11 +5,11 @@ function are the data a test call has to supply.
 """
 
 import json
-import re
 from pathlib import Path
 
+from domain.agent_rules import clean_properties, is_valid_name
+
 CATALOG_PATH = Path(__file__).resolve().parent.parent / "functions.json"
-_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
 
 
 def read_catalog() -> list[dict]:
@@ -44,12 +44,12 @@ def validate_catalog(functions: list) -> list[dict]:
         if not isinstance(item, dict):
             raise ValueError("Each function must be an object.")
         name = item.get("name")
-        if not isinstance(name, str) or not _NAME.match(name):
+        if not is_valid_name(name):
             raise ValueError(f"Invalid function name '{name}'.")
         if name in seen:
             raise ValueError(f"Function '{name}' is listed twice.")
         seen.add(name)
-        properties = _properties(item.get("properties", {}))
+        properties = clean_properties(item.get("properties", {}))
         required = item.get("required", [])
         if not isinstance(required, list) or not all(isinstance(field, str) for field in required):
             raise ValueError(f"Function '{name}' has an invalid required list.")
@@ -61,20 +61,3 @@ def validate_catalog(functions: list) -> list[dict]:
         })
     return clean
 
-
-def _properties(raw: object) -> dict:
-    if not isinstance(raw, dict):
-        raise ValueError("Function properties must be an object.")
-    properties: dict = {}
-    for key, value in raw.items():
-        if not isinstance(key, str) or not _NAME.match(key) or not isinstance(value, dict):
-            raise ValueError(f"Invalid field '{key}'.")
-        field = {
-            "type": "string",
-            "description": value.get("description") if isinstance(value.get("description"), str) else "",
-        }
-        choices = value.get("enum")
-        if isinstance(choices, list) and all(isinstance(choice, str) and choice for choice in choices):
-            field["enum"] = choices
-        properties[key] = field
-    return properties

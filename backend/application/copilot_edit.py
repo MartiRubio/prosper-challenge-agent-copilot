@@ -1,27 +1,15 @@
-"""Ask the model for a list of small graph changes."""
+"""Ask the model for a list of small graph changes, each tied to evidence."""
 
 import json
-import re
 
-from application.apply_patch import apply_ops
-from application.openai_json import complete_json
+from application.agent_brief import brief_agent, brief_function
+from application.apply_and_validate import apply_and_validate
 from application.prompts import FLOW_EDIT
-from application.validate_agent import validate_generated
+from domain.agent_rules import is_plain_function, is_valid_name, op_rank
+from infrastructure.openai_client import complete_json
 
-_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
-_PLAIN = re.compile(r"^(?:no_function|continue)(?:[-_]\d+)?$")
-_ORDER = {
-    "add_function": 0,
-    "add_node": 1,
-    "set_persona": 2,
-    "set_task": 3,
-    "set_initial": 4,
-    "set_end": 5,
-    "add_edge": 6,
-    "set_edge": 7,
-    "remove_edge": 8,
-    "remove_node": 9,
-}
+_ATTACHMENT_LIMIT = 40_000
+_EVIDENCE_SOURCES = {"call", "attachment", "request"}
 
 
 def copilot_edit(body: dict) -> dict:
@@ -35,7 +23,8 @@ def copilot_edit(body: dict) -> dict:
     focus = body.get("focus") if isinstance(body.get("focus"), list) else []
     agent_id = body.get("agent_id") if isinstance(body.get("agent_id"), str) else ""
     calls = _calls_for_agent(body.get("calls"), agent_id)
-    user = _user_payload(document, catalog, message.strip(), focus, calls)
+    attachments = _attachments(body.get("attachments"))
+    user = _user_payload(document, catalog, message.strip(), focus, calls, attachments)
     data = complete_json(FLOW_EDIT, user)
     try:
         changes = _prepare(document, _changes(data))
@@ -44,6 +33,9 @@ def copilot_edit(body: dict) -> dict:
         data = complete_json(FLOW_EDIT, user + f"\n\nYour previous JSON was rejected: {first}. Return a corrected JSON object.")
         changes = _prepare(document, _changes(data))
         _check(document, catalog, changes)
+    sources = _evidence_sources(message.strip(), calls, attachments)
+    for change in changes:
+        change["evidence"] = _verify_evidence(change.get("evidence"), sources)
     summary = data.get("summary") if isinstance(data.get("summary"), str) else ""
     return {"summary": summary.strip(), "changes": changes}
 
@@ -55,15 +47,14 @@ def _prepare(document: dict, changes: list[dict]) -> list[dict]:
         if isinstance(node, dict)
     }
     for change in changes:
-        ordered = sorted(change["ops"], key=lambda op: _ORDER.get(op.get("op"), 50))
         prepared = []
-        for op in ordered:
+        for op in sorted(change["ops"], key=op_rank):
             if op.get("op") == "add_node" and isinstance(op.get("name"), str):
                 used.setdefault(op["name"], set())
             if op.get("op") == "add_edge":
-                op = _fresh_function(used, op)
-                if op.get("_added_function"):
-                    prepared.append(op.pop("_added_function"))
+                op, added = _fresh_function(used, op)
+                if added:
+                    prepared.append(added)
             if op.get("op") == "remove_edge":
                 names = used.get(op.get("source"))
                 if names is not None:
@@ -73,18 +64,17 @@ def _prepare(document: dict, changes: list[dict]) -> list[dict]:
     return changes
 
 
-def _fresh_function(used: dict, op: dict) -> dict:
+def _fresh_function(used: dict, op: dict) -> tuple[dict, dict | None]:
+    """A step cannot use one function twice; a repeat becomes its own go_<target> function."""
     source = op.get("source")
     function = op.get("function")
     names = used.setdefault(source, set())
-    if not isinstance(function, str) or function not in names or _PLAIN.match(function):
+    if not isinstance(function, str) or function not in names or is_plain_function(function):
         if isinstance(function, str):
             names.add(function)
-        return op
+        return op, None
     target = op.get("target") if isinstance(op.get("target"), str) else "next"
-    base = f"go_{target}"
-    if not _NAME.match(base):
-        base = "go_next"
+    base = f"go_{target}" if is_valid_name(f"go_{target}") else "go_next"
     name = base
     index = 2
     while name in names:
@@ -92,34 +82,24 @@ def _fresh_function(used: dict, op: dict) -> dict:
         index += 1
     names.add(name)
     description = op.get("description") if isinstance(op.get("description"), str) else f"Continue to {target}."
-    op = {**op, "function": name}
-    op["_added_function"] = {
+    added = {
         "op": "add_function",
         "name": name,
         "description": description,
         "properties": {},
         "required": [],
     }
-    return op
+    return {**op, "function": name}, added
 
 
 def _check(document: dict, catalog: list, changes: list[dict]) -> None:
     ops = [op for change in changes for op in change["ops"]]
-    if not ops:
-        return
-    agent, functions = apply_ops(document, ops, catalog)
-    names = {
-        item.get("name")
-        for item in functions
-        if isinstance(item, dict) and isinstance(item.get("name"), str)
-    }
-    validate_generated(agent, names)
+    if ops:
+        apply_and_validate(document, ops, catalog)
 
 
 def _changes(data: dict) -> list[dict]:
-    raw = data.get("changes", [])
-    if raw is None:
-        raw = []
+    raw = data.get("changes") or []
     if not isinstance(raw, list):
         raise ValueError("changes must be a list.")
     changes: list[dict] = []
@@ -139,9 +119,50 @@ def _changes(data: dict) -> list[dict]:
             "id": change_id,
             "title": title.strip() or change_id,
             "detail": detail.strip(),
+            "evidence": item.get("evidence"),
             "ops": ops,
         })
     return changes
+
+
+def _evidence_sources(message: str, calls: list, attachments: list[dict]) -> dict[tuple[str, str], str]:
+    sources: dict[tuple[str, str], str] = {("request", "message"): message}
+    for call in calls:
+        lines = [turn.get("text", "") for turn in call.get("turns") or [] if isinstance(turn, dict)]
+        lines.append(call.get("feedback") or "")
+        sources[("call", str(call.get("id")))] = "\n".join(lines)
+    for attachment in attachments:
+        sources[("attachment", attachment["name"])] = attachment["text"]
+    return sources
+
+
+def _verify_evidence(raw: object, sources: dict[tuple[str, str], str]) -> list[dict]:
+    """Keep well-formed citations and mark whether the quote really is in its source."""
+    if not isinstance(raw, list):
+        return []
+    evidence = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        source = item.get("source")
+        ref = item.get("ref") if isinstance(item.get("ref"), str) else ""
+        quote = item.get("quote") if isinstance(item.get("quote"), str) else ""
+        if source not in _EVIDENCE_SOURCES or not quote.strip():
+            continue
+        if source == "request":
+            ref = "message"
+        text = sources.get((source, ref), "")
+        evidence.append({
+            "source": source,
+            "ref": ref,
+            "quote": quote.strip(),
+            "verified": _normalize(quote) in _normalize(text) if text else False,
+        })
+    return evidence
+
+
+def _normalize(text: str) -> str:
+    return " ".join("".join(ch.lower() if ch.isalnum() else " " for ch in text).split())
 
 
 def _calls_for_agent(raw: object, agent_id: str) -> list:
@@ -153,52 +174,33 @@ def _calls_for_agent(raw: object, agent_id: str) -> list:
     ]
 
 
-def _user_payload(document: dict, catalog: list, message: str, focus: list, calls: list) -> str:
+def _attachments(raw: object) -> list[dict]:
+    if not isinstance(raw, list):
+        return []
+    found = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name")
+        text = item.get("text")
+        if isinstance(name, str) and isinstance(text, str) and text.strip():
+            found.append({"name": name.strip(), "text": text.strip()[:_ATTACHMENT_LIMIT]})
+    return found
+
+
+def _user_payload(
+    document: dict,
+    catalog: list,
+    message: str,
+    focus: list,
+    calls: list,
+    attachments: list[dict],
+) -> str:
     return json.dumps({
         "message": message,
         "focus": focus,
         "calls": calls,
-        "catalog": [_brief_function(item) for item in catalog if isinstance(item, dict)],
-        "agent": _brief_agent(document),
+        "attachments": attachments,
+        "catalog": [brief_function(item) for item in catalog if isinstance(item, dict)],
+        "agent": brief_agent(document),
     }, indent=2)
-
-
-def _brief_agent(document: dict) -> dict:
-    nodes = []
-    for node in document.get("nodes") or []:
-        if not isinstance(node, dict):
-            continue
-        messages = node.get("task_messages") or []
-        content = ""
-        if messages and isinstance(messages[0], dict) and isinstance(messages[0].get("content"), str):
-            content = messages[0]["content"]
-        edges = []
-        for edge in node.get("edges") or []:
-            if not isinstance(edge, dict):
-                continue
-            edges.append({
-                "function": edge.get("function"),
-                "description": edge.get("description"),
-                "target": edge.get("target"),
-            })
-        nodes.append({
-            "name": node.get("name"),
-            "task": content,
-            "end": bool(node.get("end")),
-            "edges": edges,
-        })
-    return {
-        "name": document.get("name"),
-        "persona": document.get("persona") or "",
-        "initial_node": document.get("initial_node") or "",
-        "nodes": nodes,
-    }
-
-
-def _brief_function(item: dict) -> dict:
-    return {
-        "name": item.get("name"),
-        "description": item.get("description") or "",
-        "properties": item.get("properties") or {},
-        "required": item.get("required") or [],
-    }

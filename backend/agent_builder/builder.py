@@ -17,16 +17,10 @@ from typing import Union
 from loguru import logger
 from pipecat_flows import FlowManager, FlowsFunctionSchema, NodeConfig
 
+from domain.agent_rules import edge_tool
+
 from .function_catalog import catalog_by_name
 from .schema import AgentConfig, Edge, Node
-
-
-def _with_destination(description: str, target: str) -> str:
-    continuation = f"Continue to {target}."
-    text = (description or "").strip()
-    if continuation in text:
-        return text
-    return f"{text} {continuation}".strip()
 
 
 class AgentBuilder:
@@ -104,19 +98,20 @@ class AgentBuilder:
             next_node = self._make_node(self._nodes_by_name[edge.target])
             return {"status": "success", **args}, next_node
 
-        if edge.function in self._functions:
-            spec = self._functions[edge.function]
-            description = spec.get("description") or edge.description
-            properties = spec.get("properties") or {}
-            required = spec.get("required") or []
-        else:
-            description = edge.description
-            properties = edge.properties
-            required = edge.required
+        tool = edge_tool(
+            {
+                "function": edge.function,
+                "description": edge.description,
+                "target": edge.target,
+                "properties": edge.properties,
+                "required": edge.required,
+            },
+            self._functions,
+        )
         return FlowsFunctionSchema(
-            name=edge.function,
-            description=_with_destination(description, edge.target),
-            properties=properties,
-            required=required,
+            name=tool["name"],
+            description=tool["description"],
+            properties=tool["properties"],
+            required=tool["required"],
             handler=handler,
         )
