@@ -25,3 +25,17 @@ Copilot run on a blank agent with "Build the scheduling agent from these guideli
 - **Self-reported coverage: 6 of 6.** The copilot listed section titles ("Booking appointments", "Escalation and transfers") as its rules, so the coverage bar showed full coverage while 11 redlines were missing. That is the failure this document is built to expose.
 
 To re-score a run, check whether each redline is reflected in the persona, a step’s task, or an arrow. A search for the key terms (okafor, 988, address, guardian, vaccine, no-show, result, spanish, three months, saturday, covered) is a quick first pass. Then read the steps.
+
+## After the two-pass intake (2026-11-11)
+
+Same document, same request, blank agent. The rules are extracted from overlapping slices with quotes checked against the PDF, merged by situation, and copied into the persona by the server. The model designs only the graph.
+
+| Run | Rules extracted | Redlines in the agent | Dedicated steps |
+| --- | --- | --- | --- |
+| Single pass (baseline) | 6 "rules" (section titles) | 1 / 12 | none |
+| Rules mapped to changes, model writes them | 43 | 4 / 12 | emergency, unauthorized caller |
+| Model copies rules into the persona | 48 | 8 / 12 (it paraphrased away "under eighteen", "never with a physician", Spanish) | none |
+| Server copies rules verbatim, run 1 | 50 | **12 / 12** | emergency, crisis |
+| Server copies rules verbatim, run 2 | 44 | **12 / 12** | emergency exit, safety exit |
+
+What this score means: each redline is written into the agent, with its specifics, either in the persona (which the agent sees at every step) or in a step. It does not prove the voice agent obeys every rule on a live call. To check that, place the test calls in the table above, or use them as replay scenarios.

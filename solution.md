@@ -16,7 +16,12 @@ This submission is a graph editor with a test call (Phase 1) and a copilot built
 
 ### 1. From guidelines to a first agent
 
-Attach the client's guideline document (.txt, .md, or .pdf) in the copilot and ask for an agent. The copilot lists every rule in the document that changes how a call should go, and builds the graph as one change per path: intake, booking, cancellation, an emergency exit, a handoff. Each step cites the guideline sentence it implements. A coverage bar shows how many rules the draft covers. Rules nothing covers get a "Cover the missing rules" button. The attachment stays attached for follow-up requests.
+Attach the client's guideline document (.txt, .md, or .pdf) and ask for an agent. This runs in two passes:
+
+1. **Extract.** The copilot reads the document in overlapping slices and pulls out every specific, testable rule, including rules buried in table cells, FAQ answers, and the change log. A rule is kept only if its quote is really in the document. Duplicates are merged without losing names, times, ages, or thresholds.
+2. **Copy and design.** The server copies the rules into the persona word for word, as the first card to review, so no rule is paraphrased away. The model only designs the graph, one change per path, with a dedicated step for every rule that changes where the call goes: emergencies, crisis lines, callers who may not book, handoffs.
+
+The coverage list shows each rule, its quote, and where it lives. To test this, `docs/samples/lakeside-guidelines.pdf` hides 12 rules in 11 pages. A single-pass version caught 1 of them while reporting full coverage; the two-pass version caught 12 ([answer key](docs/samples/lakeside-guidelines-answer-key.md)).
 
 ### 2. From production calls to a fix
 

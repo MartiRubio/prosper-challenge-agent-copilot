@@ -4,8 +4,10 @@ import json
 
 from application.agent_brief import brief_agent, brief_function
 from application.apply_and_validate import apply_and_validate
+from application.extract_rules import extract_rules
 from application.prompts import FLOW_EDIT
 from domain.agent_rules import is_plain_function, is_valid_name, op_rank
+from domain.text_match import quote_in
 from infrastructure.openai_client import complete_json
 
 _ATTACHMENT_LIMIT = 40_000
@@ -26,7 +28,8 @@ def copilot_edit(body: dict) -> dict:
     agent_id = body.get("agent_id") if isinstance(body.get("agent_id"), str) else ""
     calls = _calls_for_agent(body.get("calls"), agent_id)
     attachments = _attachments(body.get("attachments"))
-    user = _user_payload(document, catalog, message.strip(), focus, calls, attachments)
+    rules = extract_rules(attachments) if attachments else []
+    user = _user_payload(document, catalog, message.strip(), focus, calls, attachments, rules)
     prompt = user
     warnings: list[str] = []
     for attempt in range(_ATTEMPTS):
@@ -34,7 +37,11 @@ def copilot_edit(body: dict) -> dict:
         data = complete_json(FLOW_EDIT, prompt)
         try:
             changes = _prepare(document, _changes(data))
-            warnings = _check(document, catalog, changes)
+            if last:
+                changes, dropped = _drop_dangling(document, changes)
+            else:
+                dropped = []
+            warnings = dropped + _check(document, catalog, changes)
         except ValueError as error:
             if last:
                 raise
@@ -47,9 +54,10 @@ def copilot_edit(body: dict) -> dict:
     sources = _evidence_sources(message.strip(), calls, attachments)
     for change in changes:
         change["evidence"] = _verify_evidence(change.get("evidence"), sources)
+    if rules:
+        changes = _with_rules_in_persona(document, changes, rules)
     summary = data.get("summary") if isinstance(data.get("summary"), str) else ""
-    ids = {change["id"] for change in changes}
-    coverage = _coverage(data.get("coverage"), ids) if attachments else []
+    coverage = [{"rule": rule["rule"], "quote": rule["quote"], "covered_by": "persona"} for rule in rules]
     return {"summary": summary.strip(), "changes": changes, "coverage": coverage, "warnings": warnings}
 
 
@@ -162,20 +170,41 @@ def _shape_problems(agent: dict) -> list[str]:
     return problems
 
 
+def _drop_dangling(document: dict, changes: list[dict]) -> tuple[list[dict], list[str]]:
+    """Last resort: drop ops that name steps nobody creates, and say which, instead of failing."""
+    ops = [op for change in changes for op in change["ops"]]
+    missing = _missing_steps(document, ops)
+    if not missing:
+        return changes, []
+    kept = []
+    for change in changes:
+        remaining = [op for op in change["ops"] if not (_named(op) & missing)]
+        if remaining:
+            kept.append({**change, "ops": remaining})
+    names = ", ".join(sorted(missing))
+    return kept, [f"Dropped the parts of this proposal that pointed at steps nobody creates ({names}). Check the arrows before keeping."]
+
+
+def _named(op: dict) -> set[str]:
+    kind = op.get("op")
+    names: set[str] = set()
+    if kind in {"add_edge", "set_edge", "remove_edge"}:
+        names.add(op.get("source"))
+    if kind in {"add_edge", "set_edge"} and op.get("target") is not None:
+        names.add(op.get("target"))
+    if kind in {"set_task", "set_initial", "set_end", "remove_node"}:
+        names.add(op.get("node"))
+    return {name for name in names if isinstance(name, str)}
+
+
 def _missing_steps(document: dict, ops: list[dict]) -> set[str]:
     """Every step an op points at that neither exists nor is added by some op."""
     known = {node.get("name") for node in document.get("nodes") or [] if isinstance(node, dict)}
     known |= {op.get("name") for op in ops if op.get("op") == "add_node"}
     named: set[str] = set()
     for op in ops:
-        kind = op.get("op")
-        if kind in {"add_edge", "set_edge", "remove_edge"}:
-            named.add(op.get("source"))
-        if kind in {"add_edge", "set_edge"} and op.get("target") is not None:
-            named.add(op.get("target"))
-        if kind in {"set_task", "set_initial", "set_end", "remove_node"}:
-            named.add(op.get("node"))
-    return {name for name in named if isinstance(name, str) and name not in known}
+        named |= _named(op)
+    return {name for name in named if name not in known}
 
 
 def _changes(data: dict) -> list[dict]:
@@ -236,28 +265,47 @@ def _verify_evidence(raw: object, sources: dict[tuple[str, str], str]) -> list[d
             "source": source,
             "ref": ref,
             "quote": quote.strip(),
-            "verified": _normalize(quote) in _normalize(text) if text else False,
+            "verified": quote_in(quote, text) if text else False,
         })
     return evidence
 
 
-def _normalize(text: str) -> str:
-    # Letters and digits only: PDF text breaks lines, and sometimes words, in odd places.
-    return "".join(ch.lower() for ch in text if ch.isalnum())
+_RULES_HEADING = "Clinic rules:"
 
 
-def _coverage(raw: object, ids: set[str]) -> list[dict]:
-    """Each guideline rule and the change that implements it, or none."""
-    if not isinstance(raw, list):
-        return []
-    rules = []
-    for item in raw:
-        if not isinstance(item, dict) or not isinstance(item.get("rule"), str) or not item["rule"].strip():
-            continue
-        covered_by = item.get("covered_by")
-        covered = isinstance(covered_by, str) and (covered_by in ids or covered_by == "existing")
-        rules.append({"rule": item["rule"].strip(), "covered_by": covered_by if covered else ""})
-    return rules
+def _with_rules_in_persona(document: dict, changes: list[dict], rules: list[dict]) -> list[dict]:
+    """Copy every extracted rule into the persona verbatim, as one change reviewed first.
+
+    The model paraphrases rules away when it restates them, so it never writes
+    them: it designs the graph, and the server owns the rule list. Any persona
+    the model proposed becomes the opening of the new one.
+    """
+    base = _strip_rules(document.get("persona") or "")
+    kept: list[dict] = []
+    for change in changes:
+        persona_ops = [op for op in change["ops"] if op.get("op") == "set_persona"]
+        if persona_ops:
+            base = _strip_rules(persona_ops[-1].get("content") or base)
+        others = [op for op in change["ops"] if op.get("op") != "set_persona"]
+        if others:
+            kept.append({**change, "ops": others})
+    lines = "\n".join(f"{index}. {rule['rule']}" for index, rule in enumerate(rules, start=1))
+    rules_change = {
+        "id": "rules",
+        "title": f"Add the client’s {len(rules)} rules to the persona",
+        "detail": "Copied word for word from the guidelines. The persona is in front of the agent at every step.",
+        "evidence": [
+            {"source": "attachment", "ref": rule["source"], "quote": rule["quote"], "verified": True}
+            for rule in rules[:3]
+        ],
+        "ops": [{"op": "set_persona", "content": f"{base.strip()}\n\n{_RULES_HEADING}\n{lines}".strip()}],
+    }
+    return [rules_change, *kept]
+
+
+def _strip_rules(persona: str) -> str:
+    index = persona.find(_RULES_HEADING)
+    return persona[:index].rstrip() if index >= 0 else persona
 
 
 def _calls_for_agent(raw: object, agent_id: str) -> list:
@@ -290,11 +338,13 @@ def _user_payload(
     focus: list,
     calls: list,
     attachments: list[dict],
+    rules: list[dict],
 ) -> str:
     return json.dumps({
         "message": message,
         "focus": focus,
         "calls": calls,
+        "rules": [{"id": rule["id"], "rule": rule["rule"], "quote": rule["quote"]} for rule in rules],
         "attachments": attachments,
         "catalog": [brief_function(item) for item in catalog if isinstance(item, dict)],
         "agent": brief_agent(document),

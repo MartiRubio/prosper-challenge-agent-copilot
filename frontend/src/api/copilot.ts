@@ -51,7 +51,9 @@ export type Attachment = {
 
 export type CoverageRule = {
     rule: string;
-    /** The change that implements it, "existing", or "" when nothing does. */
+    /** The guideline sentence the rule comes from. */
+    quote?: string;
+    /** Where the rule lives: "persona", a step name, or "" when nothing holds it. */
     covered_by: string;
 };
 

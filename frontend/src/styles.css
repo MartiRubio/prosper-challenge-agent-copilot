@@ -2877,3 +2877,23 @@ button.chip:not(.is-fixed):hover {
     margin-top: 4px;
     font-size: 0.76rem;
 }
+
+.coverage ul {
+    max-height: 340px;
+    overflow: auto;
+    padding-right: 4px;
+}
+
+.coverage-quote {
+    grid-column: 2;
+    color: var(--ink-2);
+    font-size: 0.74rem;
+    font-style: italic;
+}
+
+/* A rewritten persona can be long: keep the card readable. */
+.line-before,
+.line-after {
+    max-height: 200px;
+    overflow: auto;
+}

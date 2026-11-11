@@ -244,7 +244,7 @@ function RequestView(props: CopilotChatProps & { request: CopilotRequest }) {
             {thinking ? (
                 <div className="thinking" role="status">
                     <LoaderCircle className="spin" aria-hidden="true" />
-                    {request.calls.length ? "Reading the calls against the graph…" : request.attachments.length ? "Reading the guidelines…" : "Reading the graph…"}
+                    {request.calls.length ? "Reading the calls against the graph…" : request.attachments.length ? "Pulling every rule out of the guidelines, then drafting the graph. Long documents take about a minute…" : "Reading the graph…"}
                 </div>
             ) : null}
 
@@ -301,7 +301,6 @@ function Coverage({ request, onSend, sending }: { request: CopilotRequest; onSen
     const [open, setOpen] = useState(false);
     const missing = request.coverage.filter((rule) => !rule.covered_by);
     const covered = request.coverage.length - missing.length;
-    const titles = Object.fromEntries((request.changes ?? []).map((change) => [change.id.split(":").pop(), change.title]));
     return (
         <section className={missing.length ? "coverage has-missing" : "coverage"}>
             <button type="button" className="coverage-head" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
@@ -309,18 +308,20 @@ function Coverage({ request, onSend, sending }: { request: CopilotRequest; onSen
                     <span style={{ width: `${(covered / request.coverage.length) * 100}%` }} />
                 </span>
                 <span>
-                    Guidelines covered: <strong>{covered} of {request.coverage.length}</strong> rules
+                    <strong>{request.coverage.length} rules</strong> found in the guidelines
+                    {missing.length ? `, ${missing.length} not in the agent` : ", all in the agent"}
                 </span>
                 <ChevronRight className={open ? "coverage-chevron is-open" : "coverage-chevron"} aria-hidden="true" />
             </button>
             {open ? (
                 <ul>
-                    {request.coverage.map((rule) => (
-                        <li key={rule.rule} className={rule.covered_by ? "is-covered" : "is-missing"}>
+                    {request.coverage.map((rule, index) => (
+                        <li key={`${index}-${rule.rule}`} className={rule.covered_by ? "is-covered" : "is-missing"}>
                             {rule.covered_by ? <CircleCheck aria-hidden="true" /> : <CircleX aria-hidden="true" />}
                             <span>{rule.rule}</span>
+                            {rule.quote ? <span className="coverage-quote">“{rule.quote}”</span> : null}
                             <span className="muted">
-                                {rule.covered_by === "existing" ? "already in the agent" : titles[rule.covered_by] ?? ""}
+                                {rule.covered_by === "persona" ? "In the persona" : rule.covered_by ? `In ${rule.covered_by}` : "Not in the agent"}
                             </span>
                         </li>
                     ))}

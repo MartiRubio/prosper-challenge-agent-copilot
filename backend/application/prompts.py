@@ -72,7 +72,7 @@ Rules:
 - A blank graph has Start and End only. The first useful change must add steps and set_initial.
 - If focus is present, change that part. You still see the whole graph.
 - If calls are present, ground the changes in the caller's words and the feedback. Fix the step the call shows failing. Do not invent a new agent.
-- If attachments are present, they are the client's guidelines. Before writing changes, list every rule in them that changes how a call should go (intents, data to collect, escalation, hours, fees, what never to do) in "coverage", one entry per rule: {"rule":"short name of the rule","covered_by":"the id of the change that implements it, or \"existing\" if the agent already does it"}. Then write changes so that every rule is covered. A rule that is only behavior inside a step (a fee to mention, something never to say) is covered by that step's task. Each change cites the guideline sentences it implements.
+- If attachments are present, they are the client's guidelines, and "rules" lists every specific rule already pulled out of them. The server copies all of these rules into the persona itself, word for word, so do not restate them there: keep any persona you write to who the agent is and how it speaks. Your job is the graph. Every rule that changes where the call goes needs its own step and arrows: emergencies, crisis lines, a baby with a fever, a caller who may not book, refusals, and handoffs (refills, results, records, billing). Steps a caller reaches in a specific situation should repeat that situation's specifics in their task. Each change cites the guideline sentences it implements.
 - A request about who the agent is, its tone, or what it must always or never do on every call is a set_persona change, not a step change.
 - Names use letters, numbers, and underscores.
 - Prefer the smallest change. An empty changes list is right when nothing should move.
@@ -85,6 +85,32 @@ You receive the step name, its current task, the team's message, and the whole a
 
 Reply with JSON only:
 {"content":"Objective: ...\\nContext: ...\\nInstructions: ...\\nExpected output: ..."}
+"""
+
+RULE_EXTRACT = """You read one part of a healthcare practice's guidelines for its phone line and list every specific rule a voice agent must follow on a call.
+
+A rule is specific and testable: someone could place a call and check whether the agent obeyed it. Look everywhere, including table cells, FAQ answers, footnotes, and change logs. A table row or cell that says "never", "only", "must", "closed", or "do not" is a rule, even when it reads like a scheduling detail. A later change log entry overrides earlier text; report the rule as it now stands.
+
+Include: who may or may not be booked, with whom, when, and where; data to collect; what to say or never say; when to stop and escalate (emergencies, safety, crisis lines); language handling; anything the agent must refuse or redirect.
+Leave out: background, history, mission statements, and anything only staff outside the call do.
+Never list a section title or a topic as a rule ("Booking appointments" is a topic; "Never book new patients with Dr. Okafor" is a rule).
+
+Reply with JSON only:
+{"rules":[{"rule":"one imperative sentence the agent must follow","quote":"the sentence from the text that states it, copied word for word"}]}
+An empty list is right when this part holds no rules.
+"""
+
+RULE_MERGE = """You get every rule pulled out of a healthcare practice's phone guidelines, slice by slice, so there are duplicates and near-duplicates. Turn them into the list a deployment engineer would check the agent against.
+
+- Combine all rules about one situation into a single rule that keeps every specific in it: one rule for refills, one for test results, one for records, one for billing, one for voicemail, one for cancelling, one for the infant fever case, one for who may book for a minor, one for the read-back, and so on.
+- Never drop or blur a specific: a person's name, a time, a day, an age, a number, a threshold, a phone line, an escalation, or something the agent must refuse or never do must survive in the merged wording. Two different specifics may share a rule only if they are about the same situation.
+- A merged rule says what the agent does, not just the name of a policy: "offer only same-day appointments to patients with three or more no-shows", not "explain the access plan".
+- Fold generic courtesy (be warm, don't joke, use names, don't interrupt, short sentences) into at most two rules.
+- Between 15 and 35 rules.
+
+Reply with JSON only:
+{"rules":[{"rule":"one imperative sentence","from":["r3","r17"]}]}
+"from" lists the ids of the input rules each output rule merges.
 """
 
 PERSONA_REWRITE = """You help a deployment team rewrite the persona of a voice agent for a healthcare clinic. The persona is the global instruction every step of the call sees: who the agent is, how it speaks, and what it must always or never do.
