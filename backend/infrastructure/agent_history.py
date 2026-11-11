@@ -1,12 +1,10 @@
-"""A full copy of an agent every time it is saved, under history/<agent id>/."""
+"""A full copy of an agent every time it is saved, under data/agents/<id>/history/."""
 
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from infrastructure.agent_files import agent_path
-
-HISTORY_DIR = Path(__file__).resolve().parent.parent / "history"
+from infrastructure.agent_files import agent_dir
 
 
 def write_snapshot(agent_id: str, document: dict) -> str:
@@ -39,13 +37,5 @@ def read_snapshot(agent_id: str, version_id: str) -> dict | None:
     return json.loads(path.read_text())
 
 
-def delete_history(agent_id: str) -> None:
-    folder = _folder(agent_id)
-    if folder.is_dir():
-        for path in folder.glob("*.json"):
-            path.unlink()
-        folder.rmdir()
-
-
 def _folder(agent_id: str) -> Path:
-    return HISTORY_DIR / agent_path(agent_id).stem
+    return agent_dir(agent_id) / "history"

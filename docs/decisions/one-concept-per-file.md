@@ -2,9 +2,9 @@
 
 New backend code is split by job:
 
-- `application/<use_case>.py` — one use case, one function
-- `infrastructure/agent_files.py` — read and write agent JSON
-- `infrastructure/active_node_file.py` — the live node during a call
+- `domain/` — pure rules with no input or output
+- `application/<group>/<use_case>.py` — one use case, one function, grouped as agents, calls and copilot
+- `infrastructure/` — one adapter per thing stored or called: agent files, call files, prompts, OpenAI
 - `interfaces/http/` — one router per resource, and `app.py` only builds the process
 
 The frontend mirrors that. `TaskEditor.tsx` edits the spoken task. `startWebRtcCall.ts` starts the call. `App.tsx` only composes the page.

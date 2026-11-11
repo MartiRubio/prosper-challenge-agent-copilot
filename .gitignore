@@ -19,12 +19,6 @@ dist/
 venv/
 env/
 
-# ---- Live call status ----
-backend/runtime/
-
-# ---- Model prompts and answers ----
-backend/logs/llm/
-
 # ---- Node / frontend (Phase 1 UI later) ----
 node_modules/
 .next/
@@ -38,9 +32,11 @@ Thumbs.db
 .vscode/
 *.swp
 
-# ---- Recorded test calls, call checks, agent history ----
-backend/logs/
-backend/history/
+# ---- Recorded test calls, call checks, agent history, model logs ----
+backend/data/agents/*/calls/
+backend/data/agents/*/checks.json
+backend/data/agents/*/history/
+backend/data/logs/
 
 # ---- Private review notes ----
 review/

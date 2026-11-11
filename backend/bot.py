@@ -17,7 +17,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from loguru import logger
-
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
@@ -36,13 +35,11 @@ from pipecat.workers.runner import WorkerRunner
 from pipecat_flows import FlowManager
 
 from agent_builder import AgentBuilder
-from application.announce_node import bind_node_announcer
-from application.caller_data import caller_fields
-from application.jump_to_node import jump_to_node
-from application.load_call_agent import load_call_agent
-from application.opening_node import opening_node
-from application.record_call import record_call
-from application.track_active_node import bind_call_agent, clear_tracked_node, track_active_node
+from application.calls.announce_node import NodeAnnouncer
+from application.calls.caller_data import caller_fields
+from application.calls.load_call_agent import load_call_agent
+from application.calls.opening_node import opening_node
+from application.calls.record_call import record_call
 
 # Load .env next to this file, so the bot runs the same from the repo root or backend/.
 load_dotenv(Path(__file__).parent / ".env", override=True)
@@ -57,6 +54,7 @@ async def run_bot(
     runner_args: RunnerArguments,
     builder: AgentBuilder,
     agent_id: str | None,
+    announce_node: NodeAnnouncer,
 ) -> None:
     config = builder.config
     logger.info(f"Starting '{config.name}' with {len(config.nodes)} nodes")
@@ -103,13 +101,9 @@ async def run_bot(
     async def on_client_connected(transport, client):
         node_name, node = opening_node(builder, getattr(runner_args, "body", None), flow_manager, context)
         logger.info(f"Client connected — starting flow at {node_name}")
-        bind_node_announcer(lambda node_name: _send_node(client, node_name))
-        track_active_node(node_name)
+        announce_node.bind(lambda name: _send_node(client, name))
+        announce_node(node_name)
         await flow_manager.initialize(node)
-
-    @transport.event_handler("on_app_message")
-    async def on_app_message(transport, message, sender):
-        await jump_to_node(flow_manager, context, builder, message)
 
     saved = False
 
@@ -131,9 +125,7 @@ async def run_bot(
     async def on_client_disconnected(transport, client):
         logger.info("Client disconnected")
         save_call()
-        bind_node_announcer(None)
-        clear_tracked_node()
-        bind_call_agent(None)
+        announce_node.bind(None)
         await worker.cancel()
 
     runner = WorkerRunner(handle_sigint=runner_args.handle_sigint)
@@ -155,13 +147,13 @@ def _send_node(client, node_name: str) -> None:
 async def bot(runner_args: RunnerArguments):
     """Entry point invoked by the Pipecat dev runner (and Pipecat Cloud)."""
     transport = await create_transport(runner_args, transport_params)
+    announce_node = NodeAnnouncer()
     agent_id, builder = load_call_agent(
         getattr(runner_args, "body", None),
-        on_transition=track_active_node,
+        on_transition=announce_node,
     )
     logger.info(f"Loading agent {agent_id or builder.config.name}")
-    bind_call_agent(agent_id)
-    await run_bot(transport, runner_args, builder, agent_id)
+    await run_bot(transport, runner_args, builder, agent_id, announce_node)
 
 
 if __name__ == "__main__":

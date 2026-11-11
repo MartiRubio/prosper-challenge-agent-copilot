@@ -3,7 +3,7 @@ import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
 
 import type { AgentDocument } from "../editor/agentDocument";
 import { openBotSpeaker } from "./botPlayback";
-import { bindCallJump, publishCallNode } from "./callChannel";
+import { publishCallNode, setCallLive } from "./callChannel";
 
 const VOICE_URL = import.meta.env.VITE_VOICE_URL ?? "http://127.0.0.1:7860";
 
@@ -27,7 +27,7 @@ export async function startWebRtcCall(
         }
         ended = true;
         speaker.stop();
-        bindCallJump(null);
+        setCallLive(false);
         return true;
     }
     const client = new PipecatClient({
@@ -66,7 +66,7 @@ export async function startWebRtcCall(
         }
         connected = true;
         attachPeerAudio(client, (track) => speaker.attach(track));
-        bindCallJump((nodeName, data) => client.sendClientMessage("jump", { node: nodeName, data }));
+        setCallLive(true);
     } catch (error) {
         teardown();
         await client.disconnect().catch(() => undefined);

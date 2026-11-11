@@ -2,22 +2,22 @@
 
 from fastapi import APIRouter, Body, HTTPException, Query
 
-from application.apply_and_validate import apply_and_validate
-from application.check_call import UnknownCall, check_call
-from application.copilot_edit import copilot_edit
-from application.extract_attachment import extract_attachment
-from application.generate_test_data import generate_test_data
-from application.list_calls import list_calls
-from application.replay_calls import replay_calls
-from application.rewrite_task import rewrite_task
+from application.calls.list_calls import list_calls
+from application.copilot.apply_changes import apply_changes
+from application.copilot.check_call import UnknownCall, check_call
+from application.copilot.generate_test_data import generate_test_data
+from application.copilot.propose_changes import propose_changes
+from application.copilot.replay_calls import replay_calls
+from application.copilot.rewrite_task import rewrite_task
 from infrastructure.agent_files import InvalidAgentId
+from infrastructure.attachment_text import extract_attachment
 
 router = APIRouter(prefix="/copilot", tags=["copilot"])
 
 
 @router.post("/edit")
 def post_edit(body: dict) -> dict:
-    return _model_call(copilot_edit, body)
+    return _model_call(propose_changes, body)
 
 
 @router.post("/rewrite")
@@ -34,7 +34,7 @@ def post_test_data(body: dict) -> dict:
 def post_apply(body: dict) -> dict:
     catalog = body.get("catalog") if isinstance(body.get("catalog"), list) else []
     try:
-        agent, functions = apply_and_validate(body.get("agent"), body.get("ops"), catalog)
+        agent, functions = apply_changes(body.get("agent"), body.get("ops"), catalog)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from None
     return {"agent": agent, "functions": functions}

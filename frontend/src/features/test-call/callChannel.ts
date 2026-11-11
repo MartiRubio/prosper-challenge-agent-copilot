@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 
-type Jump = (nodeName: string, data: Record<string, string>) => void;
-
 let activeNode: string | null = null;
 let callLive = false;
 const listeners = new Set<() => void>();
@@ -20,9 +18,9 @@ export function publishCallNode(nodeName: string | null) {
     emit();
 }
 
-export function bindCallJump(jump: Jump | null) {
-    callLive = jump !== null;
-    if (!jump) {
+export function setCallLive(live: boolean) {
+    callLive = live;
+    if (!live) {
         activeNode = null;
     }
     emit();

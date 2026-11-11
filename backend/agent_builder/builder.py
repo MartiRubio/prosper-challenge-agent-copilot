@@ -19,29 +19,44 @@ from pipecat_flows import FlowManager, FlowsFunctionSchema, NodeConfig
 
 from domain.agent_rules import edge_tool
 
-from .function_catalog import catalog_by_name
 from .schema import AgentConfig, Edge, Node
 
 
 class AgentBuilder:
     """Builds a runnable Pipecat Flows graph from a declarative AgentConfig."""
 
-    def __init__(self, config: AgentConfig, on_transition: Callable[[str], None] | None = None):
+    def __init__(
+        self,
+        config: AgentConfig,
+        functions: dict[str, dict] | None = None,
+        on_transition: Callable[[str], None] | None = None,
+    ):
+        """`functions` is the shared catalog by name; an edge takes its fields from it."""
         self.config = config
         self._on_transition = on_transition
         self._nodes_by_name = {n.name: n for n in config.nodes}
-        self._functions = catalog_by_name()
+        self._functions = functions or {}
         self._validate()
 
     # ---- loading -----------------------------------------------------------
     @classmethod
-    def from_dict(cls, data: dict, on_transition: Callable[[str], None] | None = None) -> "AgentBuilder":
-        return cls(AgentConfig.from_dict(data), on_transition=on_transition)
+    def from_dict(
+        cls,
+        data: dict,
+        functions: dict[str, dict] | None = None,
+        on_transition: Callable[[str], None] | None = None,
+    ) -> "AgentBuilder":
+        return cls(AgentConfig.from_dict(data), functions, on_transition)
 
     @classmethod
-    def from_json(cls, path: Union[str, Path], on_transition: Callable[[str], None] | None = None) -> "AgentBuilder":
+    def from_json(
+        cls,
+        path: Union[str, Path],
+        functions: dict[str, dict] | None = None,
+        on_transition: Callable[[str], None] | None = None,
+    ) -> "AgentBuilder":
         data = json.loads(Path(path).read_text())
-        return cls.from_dict(data, on_transition=on_transition)
+        return cls.from_dict(data, functions, on_transition)
 
     # ---- validation --------------------------------------------------------
     def _validate(self) -> None:

@@ -2,8 +2,8 @@
 
 from fastapi import APIRouter, Body, HTTPException
 
-from agent_builder.function_catalog import read_catalog, write_catalog
-from application.cascade_function_name import cascade_function_name
+from application.agents.rename_function import cascade_function_name
+from infrastructure.function_files import read_catalog, write_catalog
 
 router = APIRouter(prefix="/functions", tags=["functions"])
 

@@ -2,12 +2,12 @@
 
 from fastapi import APIRouter, Body, HTTPException
 
-from application.agent_versions import UnknownVersion, get_version, list_versions
-from application.create_agent import create_agent
-from application.delete_agent import delete_agent
-from application.get_agent import get_agent
-from application.list_agents import list_agents
-from application.save_agent import save_agent
+from application.agents.agent_versions import UnknownVersion, get_version, list_versions
+from application.agents.create_agent import create_agent
+from application.agents.delete_agent import delete_agent
+from application.agents.get_agent import get_agent
+from application.agents.list_agents import list_agents
+from application.agents.save_agent import save_agent
 from infrastructure.agent_files import InvalidAgentId, UnknownAgent
 
 router = APIRouter(prefix="/agents", tags=["agents"])

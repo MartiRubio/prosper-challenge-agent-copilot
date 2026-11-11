@@ -20,11 +20,23 @@ Put API keys in `backend/.env`. The copilot uses the same `OPENAI_API_KEY` as th
 | `frontend/` | The editor: graph, function catalog, test call, copilot chat, call log. |
 | `backend/bot.py` | WebRTC, ElevenLabs speech, OpenAI. Compiles the agent it is given. |
 | `backend/agent_builder/` | The JSON contract and the compile into Pipecat Flows. |
-| `backend/domain/` | Rules shared by every editor of an agent: names, op order, what a tool looks like. |
-| `backend/application/` | One use case per file, including the copilot, call checks, and replay. |
-| `backend/infrastructure/` | OpenAI client, agent files, call files, snapshots. |
-| `backend/agents/` | Saved agent documents. |
-| `backend/sample_calls/` | Mock production calls for the call log. |
-| `backend/logs/` | Recorded test calls, call checks, and every copilot prompt and answer (git-ignored). |
-| `backend/history/` | A snapshot of each agent per save (git-ignored). |
+| `backend/domain/` | Pure agent rules: names, op order, applying ops, validation, what a tool looks like, the text model. |
+| `backend/application/` | Use cases in three groups: `agents/`, `calls/` (the voice runtime), `copilot/`. |
+| `backend/infrastructure/` | Adapters: OpenAI client, prompt files, agent, call, catalog and snapshot files, attachment text. |
+| `backend/data/` | Everything stored, no database. See below. |
 | `docs/samples/` | A sample client guideline, as .txt and .pdf, to attach in the copilot. |
+
+`backend/data/` holds everything the app stores, grouped by what it belongs to:
+
+```
+data/
+  functions.json              the shared function catalog
+  prompts/<name>.md           every model prompt
+  agents/<id>/
+    agent.json                the agent
+    sample_calls.json         mock production calls
+    calls/<call id>.json      recorded test calls       (git-ignored)
+    checks.json               the check of each call    (git-ignored)
+    history/<stamp>.json      a full copy per save      (git-ignored)
+  logs/llm/<stamp>.json       every prompt and answer   (git-ignored)
+```

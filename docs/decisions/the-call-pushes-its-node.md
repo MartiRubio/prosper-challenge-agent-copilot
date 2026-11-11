@@ -6,4 +6,4 @@ The voice runner and the page already share a WebRTC data channel. When the flow
 
 Start from node is how a test begins somewhere other than the greeting. The fields for that start open beside the button. Once they are filled, the steps pulse and a click opens the call on that step. The runner receives the step and the field values in the session body, puts the values in front of the model, and speaks that step first.
 
-The HTTP route and the runtime file remain, so a call can still be inspected without the browser. The editor does not read them.
+The old HTTP route and the file it read are gone. Each call gets its own announcer, so nothing about the active step is stored or shared between calls.
