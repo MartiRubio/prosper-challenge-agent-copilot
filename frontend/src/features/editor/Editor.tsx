@@ -4,6 +4,7 @@ import { Bot, Braces, MessagesSquare, Save } from "lucide-react";
 import { renameFunction } from "../../api/functions";
 import { AgentList } from "../agent-list/AgentList";
 import { AgentCanvas } from "../agent-graph/AgentCanvas";
+import { BrandMark } from "../brand/BrandMark";
 import { CallLog } from "../call-log/CallLog";
 import { useCallLog } from "../call-log/useCallLog";
 import { CopilotChat } from "../copilot/CopilotChat";
@@ -194,7 +195,7 @@ export function Editor() {
         <div className="editor">
             <aside className="sidebar">
                 <div className="brand">
-                    <span className="brand-mark" aria-hidden="true" />
+                    <BrandMark />
                     <span>Agent Studio</span>
                 </div>
                 <div className="segmented" role="tablist">
