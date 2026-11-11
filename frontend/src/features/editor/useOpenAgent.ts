@@ -77,7 +77,7 @@ export function useOpenAgent() {
 
     const removeAgent = useCallback(async (id: string) => {
         const name = agents.find((agent) => agent.id === id)?.name ?? "this agent";
-        if (!window.confirm(`Delete ${name}?`)) {
+        if (!window.confirm(`Delete ${name}? Its calls, call checks and saved versions are deleted too. This can't be undone.`)) {
             return;
         }
         setError(null);

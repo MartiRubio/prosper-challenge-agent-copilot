@@ -22,7 +22,7 @@ web: ## Run the editor (http://localhost:5173)
 	npm --prefix frontend run dev
 
 demo-reset: ## Put the demo agent, catalog, call checks, and history back to the committed state
-	git checkout -- $(PROJECT)/data/agents/prosper-scheduler/agent.json $(PROJECT)/data/functions.json
+	git checkout -- $(PROJECT)/data/agents/prosper-scheduler/agent.json $(PROJECT)/data/agents/prosper-scheduler/sample_calls.json $(PROJECT)/data/functions.json
 	rm -rf $(PROJECT)/data/agents/prosper-scheduler/calls $(PROJECT)/data/agents/prosper-scheduler/checks.json $(PROJECT)/data/agents/prosper-scheduler/history
 
 clean: ## Remove the venv and Python caches
