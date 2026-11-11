@@ -7,9 +7,13 @@ the tree.
 """
 
 import json
+import os
+import threading
 from pathlib import Path
 
 from infrastructure.agent_files import agent_dir
+
+_checks_lock = threading.Lock()
 
 
 def read_calls(agent_id: str) -> list[dict]:
@@ -40,9 +44,16 @@ def read_checks(agent_id: str) -> dict[str, dict]:
 
 
 def write_check(agent_id: str, call_id: str, check: dict) -> None:
-    checks = read_checks(agent_id)
-    checks[call_id] = check
-    _write(agent_dir(agent_id) / "checks.json", checks)
+    """The editor checks several calls at once, so add one check under a lock.
+
+    Without it, two checks that finish together each read the file, add their
+    entry and write it back, and the later write drops the earlier check. The
+    lock is per process: the agent API is the only process that writes checks.
+    """
+    with _checks_lock:
+        checks = read_checks(agent_id)
+        checks[call_id] = check
+        _write(agent_dir(agent_id) / "checks.json", checks)
 
 
 def _read_list(path: Path) -> list[dict]:
@@ -62,5 +73,12 @@ def _read_json(path: Path) -> object:
 
 
 def _write(path: Path, data: object) -> None:
+    """Write to a temporary file and rename it over the target.
+
+    A reader never sees a half-written file. A half-written checks.json would
+    read as empty, and the next check written would erase all the others.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2) + "\n")
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+    temporary.write_text(json.dumps(data, indent=2) + "\n")
+    os.replace(temporary, path)
