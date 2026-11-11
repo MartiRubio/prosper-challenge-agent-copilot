@@ -6,6 +6,7 @@ import type { TransportState } from "@pipecat-ai/client-js";
 import type { AgentDocument } from "../editor/agentDocument";
 import { filledTestData, type TestField } from "./testFields";
 import { FieldInputs } from "./FieldInputs";
+import { GenerateTestData } from "./GenerateTestData";
 import { startWebRtcCall } from "./startWebRtcCall";
 
 type TestCallProps = {
@@ -191,7 +192,16 @@ export function TestCall({
         <div className="call-anchor">
             {showFields && !live && (
                 <div className="start-strip">
-                    <p>{ready ? "Click a step." : "Fill these, then click a step."}</p>
+                    <div className="start-strip-head">
+                        <p>{ready ? "Click a step." : "Fill these, then click a step."}</p>
+                        {agent ? (
+                            <GenerateTestData
+                                agent={agent}
+                                fields={fields}
+                                onValues={(generated) => Object.entries(generated).forEach(([name, value]) => onValue(name, value))}
+                            />
+                        ) : null}
+                    </div>
                     {fields.length > 0 && <FieldInputs fields={fields} values={values} onChange={onValue} />}
                 </div>
             )}

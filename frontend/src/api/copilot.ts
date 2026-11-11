@@ -107,6 +107,33 @@ export async function rewriteTask(agent: AgentDocument, node: string, content: s
     return body.content;
 }
 
+export async function rewritePersona(agent: AgentDocument, message: string): Promise<string> {
+    const body = await requestJson<{ content?: unknown }>(
+        "/copilot/rewrite",
+        "The persona could not be rewritten.",
+        jsonBody("POST", { agent, target: "persona", content: agent.persona ?? "", message }),
+    );
+    if (typeof body.content !== "string" || !body.content.trim()) {
+        throw new Error("The rewrite was empty.");
+    }
+    return body.content;
+}
+
+export async function generateTestData(
+    agent: AgentDocument,
+    fields: { name: string; label: string; options: string[] | null }[],
+): Promise<Record<string, string>> {
+    const body = await requestJson<{ values?: Record<string, string> }>(
+        "/copilot/test-data",
+        "Could not make up test data.",
+        jsonBody("POST", {
+            agent,
+            fields: fields.map((field) => ({ name: field.name, description: field.label, options: field.options })),
+        }),
+    );
+    return body.values ?? {};
+}
+
 export function applyOpsOnServer(
     agent: AgentDocument,
     ops: PatchOp[],

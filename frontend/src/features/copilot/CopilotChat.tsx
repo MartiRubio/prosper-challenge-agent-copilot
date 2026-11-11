@@ -22,7 +22,7 @@ import type { AgentDocument } from "../editor/agentDocument";
 import { describeChange } from "./describeChange";
 import type { FocusChip } from "./focus";
 import type { Evidence } from "./patch";
-import { blockReason } from "./review";
+import { blockReason, dependencies, reviewOrder } from "./review";
 import type { ReviewChange } from "./reviewChange";
 import type { CopilotRequest } from "./useCopilot";
 
@@ -260,32 +260,33 @@ function RequestView(props: CopilotChatProps & { request: CopilotRequest }) {
             ) : null}
             {request.changes && changes.length === 0 ? <p className="muted">Nothing needs to change.</p> : null}
 
-            {pending.length > 1 ? (
-                <div className="review-actions">
-                    <button type="button" className="btn btn-primary" disabled={applying || keepable.length === 0} onClick={() => props.onKeep(keepable.map((change) => change.id))}>
-                        Keep all {keepable.length}
-                    </button>
-                    <button type="button" className="btn" disabled={applying} onClick={() => props.onDiscard(pending.map((change) => change.id))}>
-                        Discard all
-                    </button>
-                </div>
-            ) : null}
-
-            {changes.map((change, position) => (
-                <ReviewCard
-                    key={change.id}
-                    position={position}
+            {pending.length > 0 ? (
+                <ReviewCarousel
                     document={document}
-                    change={change}
                     changes={changes}
                     applying={applying}
                     callTitles={callTitles}
-                    onKeep={() => props.onKeep([change.id])}
-                    onDiscard={() => props.onDiscard([change.id])}
+                    keepableCount={keepable.length}
+                    onKeep={props.onKeep}
+                    onDiscard={props.onDiscard}
+                    onKeepAll={() => props.onKeep(keepable.map((change) => change.id))}
+                    onDiscardAll={() => props.onDiscard(pending.map((change) => change.id))}
                     onHover={props.onHover}
                     onOpenCall={props.onOpenCall}
                 />
-            ))}
+            ) : null}
+
+            {changes.some((change) => change.status !== "pending") ? (
+                <ul className="decided">
+                    {changes.filter((change) => change.status !== "pending").map((change) => (
+                        <li key={change.id} className={`decided-${change.status}`}>
+                            {change.status === "kept" ? <CircleCheck aria-hidden="true" /> : <X aria-hidden="true" />}
+                            <span>{change.title}</span>
+                            <span className="muted">{change.status === "kept" ? "Kept" : "Discarded"}</span>
+                        </li>
+                    ))}
+                </ul>
+            ) : null}
 
             {request.error ? <p className="error">{request.error}</p> : null}
 
@@ -340,24 +341,125 @@ function Coverage({ request, onSend, sending }: { request: CopilotRequest; onSen
     );
 }
 
+function ReviewCarousel({
+    document,
+    changes,
+    applying,
+    callTitles,
+    keepableCount,
+    onKeep,
+    onDiscard,
+    onKeepAll,
+    onDiscardAll,
+    onHover,
+    onOpenCall,
+}: {
+    document: AgentDocument;
+    changes: ReviewChange[];
+    applying: boolean;
+    callTitles: Record<string, string>;
+    keepableCount: number;
+    onKeep: (ids: string[]) => void;
+    onDiscard: (ids: string[]) => void;
+    onKeepAll: () => void;
+    onDiscardAll: () => void;
+    onHover: (id: string | null) => void;
+    onOpenCall: (callId: string) => void;
+}) {
+    const ordered = reviewOrder(document, changes);
+    const [slot, setSlot] = useState(0);
+    const [direction, setDirection] = useState<"next" | "previous">("next");
+    const index = Math.min(slot, ordered.length - 1);
+    const current = ordered[index];
+    const needs = current ? dependencies(current, document, changes) : [];
+
+    // The card on screen is the one lit up on the canvas.
+    useEffect(() => {
+        onHover(current?.id ?? null);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [current?.id]);
+
+    if (!current) {
+        return null;
+    }
+
+    function go(step: number) {
+        setDirection(step > 0 ? "next" : "previous");
+        setSlot(Math.max(0, Math.min(ordered.length - 1, index + step)));
+    }
+
+    const keepLabel = needs.length === 0
+        ? "Keep"
+        : `Keep with “${needs[0].title}”${needs.length > 1 ? ` and ${needs.length - 1} more` : ""}`;
+
+    return (
+        <section className="carousel" aria-label="Proposed changes">
+            <header className="carousel-head">
+                <div className="carousel-nav">
+                    <button type="button" className="ghost-icon" aria-label="Previous change" disabled={index === 0} onClick={() => go(-1)}>
+                        <ChevronLeft aria-hidden="true" />
+                    </button>
+                    <span>Change {index + 1} of {ordered.length}</span>
+                    <button type="button" className="ghost-icon" aria-label="Next change" disabled={index >= ordered.length - 1} onClick={() => go(1)}>
+                        <ChevronRight aria-hidden="true" />
+                    </button>
+                </div>
+                {ordered.length > 1 ? (
+                    <div className="carousel-bulk">
+                        <button type="button" className="link" disabled={applying || keepableCount === 0} onClick={onKeepAll}>Keep all</button>
+                        <button type="button" className="link muted-link" disabled={applying} onClick={onDiscardAll}>Discard all</button>
+                    </div>
+                ) : null}
+            </header>
+            {ordered.length > 1 ? (
+                <div className="carousel-dots" aria-hidden="true">
+                    {ordered.map((change, i) => <span key={change.id} className={i === index ? "is-on" : ""} />)}
+                </div>
+            ) : null}
+            <ReviewCard
+                key={current.id}
+                slide={direction}
+                document={document}
+                change={current}
+                changes={changes}
+                applying={applying}
+                callTitles={callTitles}
+                keepLabel={keepLabel}
+                onKeep={() => {
+                    setDirection("next");
+                    onKeep([...needs.map((change) => change.id), current.id]);
+                }}
+                onDiscard={() => {
+                    setDirection("next");
+                    onDiscard([current.id]);
+                }}
+                onHover={onHover}
+                onOpenCall={onOpenCall}
+            />
+        </section>
+    );
+}
+
 function ReviewCard({
-    position,
+    slide,
     document,
     change,
     changes,
     applying,
     callTitles,
+    keepLabel,
     onKeep,
     onDiscard,
     onHover,
     onOpenCall,
 }: {
-    position: number;
+    slide: "next" | "previous";
     document: AgentDocument;
     change: ReviewChange;
     changes: ReviewChange[];
     applying: boolean;
     callTitles: Record<string, string>;
+    keepLabel: string;
     onKeep: () => void;
     onDiscard: () => void;
     onHover: (id: string | null) => void;
@@ -368,10 +470,8 @@ function ReviewCard({
     const pending = change.status === "pending";
     return (
         <article
-            className={`review-card review-${change.status}`}
-            style={{ animationDelay: `${position * 60}ms` }}
+            className={`review-card review-${change.status} slide-${slide}`}
             onMouseEnter={() => onHover(change.id)}
-            onMouseLeave={() => onHover(null)}
         >
             <header>
                 <h3>{change.title}</h3>
@@ -396,7 +496,7 @@ function ReviewCard({
             {pending ? (
                 <div className="review-actions">
                     <button type="button" className="btn btn-primary" disabled={applying || Boolean(reason)} onClick={onKeep}>
-                        Keep
+                        {keepLabel}
                     </button>
                     <button type="button" className="btn" disabled={applying} onClick={onDiscard}>
                         Discard
@@ -497,22 +597,64 @@ function ReplayRow({ result }: { result: ReplayResult }) {
                 <ArrowRight className="replay-arrow" aria-hidden="true" />
                 <RunBadge label="After" run={result.after} open={open === "after"} onToggle={() => setOpen(open === "after" ? null : "after")} />
             </div>
-            {run ? (
+            <button
+                type="button"
+                className="replay-toggle"
+                aria-expanded={Boolean(open)}
+                onClick={() => setOpen(open ? null : "after")}
+            >
+                <ChevronRight className={open ? "coverage-chevron is-open" : "coverage-chevron"} aria-hidden="true" />
+                {open ? "Hide the simulated calls" : "Read the simulated calls"}
+            </button>
+            {run && open ? (
                 <div className="replay-detail">
-                    <p className="replay-reason">{run.reason}</p>
-                    <p className="replay-path">{run.path.join(" → ")}</p>
-                    <div className="mini-transcript">
+                    <div className="segmented replay-tabs" role="tablist">
+                        <button type="button" role="tab" aria-selected={open === "before"} onClick={() => setOpen("before")}>
+                            {result.before.passed ? <CircleCheck aria-hidden="true" /> : <CircleX aria-hidden="true" />}
+                            Before
+                        </button>
+                        <button type="button" role="tab" aria-selected={open === "after"} onClick={() => setOpen("after")}>
+                            {result.after.passed ? <CircleCheck aria-hidden="true" /> : <CircleX aria-hidden="true" />}
+                            After
+                        </button>
+                    </div>
+                    <p className={run.passed ? "replay-reason is-pass" : "replay-reason is-fail"}>
+                        <strong>{run.passed ? "Passed." : "Failed."}</strong> {run.reason}
+                    </p>
+                    <div className="replay-path">
+                        {run.path.map((step, i) => (
+                            <span key={`${step}-${i}`}>
+                                {i > 0 ? <ArrowRight aria-hidden="true" /> : null}
+                                <span className="step-chip">{step}</span>
+                            </span>
+                        ))}
+                    </div>
+                    <div className="mini-transcript" key={open}>
                         {run.transcript.map((turn, i) => (
-                            <p key={i} className={`turn turn-${turn.role}`}>
-                                <span>{turn.role === "agent" ? `Agent${turn.step ? ` · ${turn.step}` : ""}` : "Caller"}</span>
+                            <p key={i} className={`turn turn-${turn.role}`} style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
+                                <span>{turn.role === "agent" ? `Agent${turn.step ? ` · ${turn.step}` : ""}` : "Simulated caller"}</span>
                                 {turn.text}
                             </p>
                         ))}
+                        <p className="replay-ended">{endedLabel(run.ended)}</p>
                     </div>
                 </div>
             ) : null}
         </div>
     );
+}
+
+function endedLabel(ended: ReplayRun["ended"]): string {
+    if (ended === "agent") {
+        return "The agent ended the call.";
+    }
+    if (ended === "caller") {
+        return "The caller hung up.";
+    }
+    if (ended === "turn_limit") {
+        return "Stopped at the turn limit.";
+    }
+    return "The agent has no start step.";
 }
 
 function RunBadge({ label, run, open, onToggle }: { label: string; run: ReplayRun; open: boolean; onToggle: () => void }) {

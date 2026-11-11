@@ -68,7 +68,7 @@ export function HistoryMenu({ agentId, saveCount, onRestore }: HistoryMenuProps)
                     {error ? <p className="error">{error}</p> : null}
                     {!versions && !error ? <p className="muted menu-empty">Loading…</p> : null}
                     {versions?.length === 0 ? <p className="muted menu-empty">Nothing saved yet. Every save keeps a copy here.</p> : null}
-                    {versions?.map((version, index) => (
+                    {versions?.map((version) => (
                         <button
                             key={version.id}
                             type="button"
@@ -79,8 +79,16 @@ export function HistoryMenu({ agentId, saveCount, onRestore }: HistoryMenuProps)
                                 onRestore(version.id, version.saved_at);
                             }}
                         >
-                            <span>{formatTime(version.saved_at)}{index === 0 ? " · current" : ""}</span>
-                            <span className="muted">{version.steps} steps</span>
+                            <span className="version-number">v{version.number}</span>
+                            <span className="version-main">
+                                <span>
+                                    {formatTime(version.saved_at)}
+                                    {version.current ? <span className="live-tag">Live</span> : null}
+                                </span>
+                                <span className="muted">
+                                    {version.steps} {version.steps === 1 ? "step" : "steps"} · {version.calls} {version.calls === 1 ? "call" : "calls"}
+                                </span>
+                            </span>
                         </button>
                     ))}
                 </div>

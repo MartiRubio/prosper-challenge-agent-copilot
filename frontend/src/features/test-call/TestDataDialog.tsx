@@ -1,16 +1,19 @@
 import { useEffect } from "react";
 
+import type { AgentDocument } from "../editor/agentDocument";
 import { FieldInputs } from "./FieldInputs";
+import { GenerateTestData } from "./GenerateTestData";
 import type { TestField } from "./testFields";
 
 type TestDataDialogProps = {
+    agent: AgentDocument;
     fields: TestField[];
     values: Record<string, string>;
     onChange: (name: string, value: string) => void;
     onClose: () => void;
 };
 
-export function TestDataDialog({ fields, values, onChange, onClose }: TestDataDialogProps) {
+export function TestDataDialog({ agent, fields, values, onChange, onClose }: TestDataDialogProps) {
     useEffect(() => {
         function onKey(event: KeyboardEvent) {
             if (event.key === "Escape") {
@@ -31,9 +34,16 @@ export function TestDataDialog({ fields, values, onChange, onClose }: TestDataDi
             >
                 <header className="prompt-toolbar">
                     <p className="eyebrow">Test data</p>
-                    <button type="button" className="pill" onClick={onClose}>
-                        Close
-                    </button>
+                    <div className="pill-row">
+                        <GenerateTestData
+                            agent={agent}
+                            fields={fields}
+                            onValues={(generated) => Object.entries(generated).forEach(([name, value]) => onChange(name, value))}
+                        />
+                        <button type="button" className="btn" onClick={onClose}>
+                            Close
+                        </button>
+                    </div>
                 </header>
                 <p className="muted">
                     {fields.length === 0

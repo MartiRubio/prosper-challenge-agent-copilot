@@ -21,6 +21,7 @@ import { TestCall } from "../test-call/TestCall";
 import { TestDataDialog } from "../test-call/TestDataDialog";
 import { testDataReady, testFields } from "../test-call/testFields";
 import { NodePanel } from "./NodePanel";
+import { StartAgent } from "./StartAgent";
 import { useOpenAgent } from "./useOpenAgent";
 
 const FUNCTION_NAME = /^[A-Za-z_][A-Za-z0-9_-]*$/;
@@ -57,6 +58,7 @@ export function Editor() {
     const [picking, setPicking] = useState(false);
     const [callLogOpen, setCallLogOpen] = useState(false);
     const [openCallId, setOpenCallId] = useState<string | null>(null);
+    const [manualAgents, setManualAgents] = useState<string[]>([]);
     const [openNode, setOpenNode] = useState<string | null>(null);
     const [renameCarry, setRenameCarry] = useState<{ from: string; to: string } | null>(null);
     const startFromNode = useRef<(nodeName: string) => void>(() => {});
@@ -118,6 +120,26 @@ export function Editor() {
         return () => window.removeEventListener("keydown", onKey);
     }, [dirty, saving, saveAll, copilot.locked]);
 
+    // A click anywhere outside the step editor closes it; a click on another step switches to it.
+    useEffect(() => {
+        if (!openNode && !showPersona) {
+            return;
+        }
+        function onPointer(event: PointerEvent) {
+            const target = event.target;
+            if (!(target instanceof Element)) {
+                return;
+            }
+            if (target.closest(".floating-panel, .react-flow__node, .canvas-tools, .prompt-backdrop")) {
+                return;
+            }
+            setOpenNode(null);
+            setShowPersona(false);
+        }
+        window.addEventListener("pointerdown", onPointer);
+        return () => window.removeEventListener("pointerdown", onPointer);
+    }, [openNode, showPersona]);
+
     const openCall = useCallback((callId: string) => {
         setCallLogOpen(true);
         setOpenCallId(callId);
@@ -164,6 +186,9 @@ export function Editor() {
     }
 
     const pendingCount = copilot.pending.length;
+    const showStart = Boolean(
+        document && agentId && document.nodes.length === 0 && copilot.requests.length === 0 && !manualAgents.includes(agentId),
+    );
 
     return (
         <div className="editor">
@@ -290,6 +315,17 @@ export function Editor() {
                                     promptOpen={showPersona}
                                     onOpenPrompt={() => setShowPersona((open) => !open)}
                                 />
+                                {showStart ? (
+                                    <StartAgent
+                                        attachments={copilot.attachments}
+                                        reading={copilot.reading}
+                                        attachError={copilot.attachError}
+                                        onAttach={(files) => void copilot.attach(files)}
+                                        onDetach={copilot.detach}
+                                        onDraft={(prompt) => void copilot.send(prompt)}
+                                        onManual={() => agentId && setManualAgents((current) => [...current, agentId])}
+                                    />
+                                ) : null}
                                 {copilot.locked ? (
                                     <p className="review-banner" role="status">
                                         Reviewing {pendingCount} proposed {pendingCount === 1 ? "change" : "changes"}. Keep or discard them to edit the graph again.
@@ -365,6 +401,7 @@ export function Editor() {
             </main>
             {testDataOpen && (
                 <TestDataDialog
+                    agent={document ?? { name: "", initial_node: "", nodes: [] }}
                     fields={fields}
                     values={testData}
                     onChange={(name, value) => setTestData((current) => ({ ...current, [name]: value }))}

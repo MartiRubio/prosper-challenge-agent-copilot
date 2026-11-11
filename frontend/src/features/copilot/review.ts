@@ -110,7 +110,7 @@ export function blockReason(
             return `Needs step ${target}, which was discarded.`;
         }
         if (pending.has(target)) {
-            return `Keep the new step ${target} first.`;
+            continue;
         }
         return `Needs step ${target}.`;
     }
@@ -163,4 +163,66 @@ export function previewFunctions(
         }
     }
     return next;
+}
+
+/** Steps a change points at, whether it adds them or not. */
+function namedSteps(change: ReviewChange): Set<string> {
+    const names = new Set<string>();
+    for (const op of change.ops) {
+        if (op.op === "add_edge" || op.op === "set_edge") {
+            names.add(op.source);
+            if (op.target) {
+                names.add(op.target);
+            }
+        } else if (op.op === "remove_edge") {
+            names.add(op.source);
+        } else if (op.op === "set_task" || op.op === "set_initial" || op.op === "set_end" || op.op === "remove_node") {
+            names.add(op.node);
+        }
+    }
+    return names;
+}
+
+function addedSteps(change: ReviewChange): Set<string> {
+    return new Set(change.ops.flatMap((op) => (op.op === "add_node" ? [op.name] : [])));
+}
+
+/** Pending changes that add a step this change needs, and theirs in turn. */
+export function dependencies(change: ReviewChange, document: AgentDocument, changes: ReviewChange[]): ReviewChange[] {
+    const existing = new Set(document.nodes.map((node) => node.name));
+    const found = new Map<string, ReviewChange>();
+    const visit = (current: ReviewChange) => {
+        const own = addedSteps(current);
+        for (const step of namedSteps(current)) {
+            if (existing.has(step) || own.has(step)) {
+                continue;
+            }
+            const provider = changes.find((other) => other.status === "pending" && other.id !== change.id && addedSteps(other).has(step));
+            if (provider && !found.has(provider.id)) {
+                found.set(provider.id, provider);
+                visit(provider);
+            }
+        }
+    };
+    visit(change);
+    return [...found.values()];
+}
+
+/** Pending changes in an order where every step is added before a change uses it. */
+export function reviewOrder(document: AgentDocument, changes: ReviewChange[]): ReviewChange[] {
+    const pending = changes.filter((change) => change.status === "pending");
+    const placed: ReviewChange[] = [];
+    const seen = new Set<string>();
+    const place = (change: ReviewChange) => {
+        if (seen.has(change.id)) {
+            return;
+        }
+        seen.add(change.id);
+        for (const dependency of dependencies(change, document, changes)) {
+            place(dependency);
+        }
+        placed.push(change);
+    };
+    pending.forEach(place);
+    return placed;
 }

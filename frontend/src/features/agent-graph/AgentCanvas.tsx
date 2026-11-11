@@ -120,7 +120,13 @@ export function AgentCanvas({
         assignFunction(source, functionName, choice) {
             onChange(assignEdgeFunction(document, source, functionName, choice, functions));
         },
-    }), [document, functions, onChange]);
+        removeEdge(edge) {
+            if (!locked) {
+                onChange(disconnectEdge(document, edge));
+            }
+        },
+        locked,
+    }), [document, functions, onChange, locked]);
 
     function onEdgesChange(changes: EdgeChange[]) {
         const blocked = new Set(

@@ -73,6 +73,7 @@ Rules:
 - If focus is present, change that part. You still see the whole graph.
 - If calls are present, ground the changes in the caller's words and the feedback. Fix the step the call shows failing. Do not invent a new agent.
 - If attachments are present, they are the client's guidelines. Before writing changes, list every rule in them that changes how a call should go (intents, data to collect, escalation, hours, fees, what never to do) in "coverage", one entry per rule: {"rule":"short name of the rule","covered_by":"the id of the change that implements it, or \"existing\" if the agent already does it"}. Then write changes so that every rule is covered. A rule that is only behavior inside a step (a fee to mention, something never to say) is covered by that step's task. Each change cites the guideline sentences it implements.
+- A request about who the agent is, its tone, or what it must always or never do on every call is a set_persona change, not a step change.
 - Names use letters, numbers, and underscores.
 - Prefer the smallest change. An empty changes list is right when nothing should move.
 - A node's task is instructions for the voice agent, not a script to read aloud. Write it as four short labelled lines: "Objective:", "Context:", "Instructions:", "Expected output:". Replies to the caller stay one or two spoken sentences; that belongs in Instructions.
@@ -84,6 +85,22 @@ You receive the step name, its current task, the team's message, and the whole a
 
 Reply with JSON only:
 {"content":"Objective: ...\\nContext: ...\\nInstructions: ...\\nExpected output: ..."}
+"""
+
+PERSONA_REWRITE = """You help a deployment team rewrite the persona of a voice agent for a healthcare clinic. The persona is the global instruction every step of the call sees: who the agent is, how it speaks, and what it must always or never do.
+
+You receive the current persona, the team's message, and the whole agent for context. Keep what still applies, change what the message asks, and remember replies are spoken aloud: no lists, emojis, or anything that can't be read out.
+
+Reply with JSON only:
+{"content":"the new persona"}
+"""
+
+TEST_DATA = """You make up realistic test data for a test call to a healthcare clinic's voice agent.
+
+You receive the fields the agent's functions collect (name, what it is, and allowed choices when there are any) and the agent for context. Return one plausible value per field, as a caller would give it on the phone: a believable full name, a real-looking date, a short reason. When a field has choices, pick one of them exactly. Values from one caller must be consistent with each other.
+
+Reply with JSON only:
+{"values":{"field_name":"value"}}
 """
 
 CALL_CHECK = """You review one phone call handled by a healthcare clinic's voice agent and decide whether something went wrong.

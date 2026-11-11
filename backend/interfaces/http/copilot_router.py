@@ -6,6 +6,7 @@ from application.apply_and_validate import apply_and_validate
 from application.check_call import UnknownCall, check_call
 from application.copilot_edit import copilot_edit
 from application.extract_attachment import extract_attachment
+from application.generate_test_data import generate_test_data
 from application.list_calls import list_calls
 from application.replay_calls import replay_calls
 from application.rewrite_task import rewrite_task
@@ -22,6 +23,11 @@ def post_edit(body: dict) -> dict:
 @router.post("/rewrite")
 def post_rewrite(body: dict) -> dict:
     return _model_call(rewrite_task, body)
+
+
+@router.post("/test-data")
+def post_test_data(body: dict) -> dict:
+    return _model_call(generate_test_data, body)
 
 
 @router.post("/apply")

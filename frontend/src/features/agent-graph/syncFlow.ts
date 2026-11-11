@@ -4,7 +4,7 @@ import type { AgentDocument, NodePosition } from "../editor/agentDocument";
 import { arrangeNodes } from "./arrangeNodes";
 import { handleSides } from "./handleSides";
 import type { DrawnEdge } from "./drawnEdge";
-import { END_ID, START_ID } from "./markers";
+import { END_ID, isMarker, START_ID } from "./markers";
 
 export type FlowEdgeData = DrawnEdge & {
     removable: boolean;
@@ -97,7 +97,9 @@ function placedPositions(
     const known = new Set(current.map((node) => node.id));
     const added = Object.keys(fresh).filter((id) => !known.has(id));
     const collides = added.some((id) => current.some((node) => overlaps(fresh[id], node.position)));
-    if (collides) {
+    const steps = current.filter((node) => !isMarker(node.id)).length;
+    // A change that adds as many steps as there were (a first draft, say) gets a fresh layout.
+    if (collides || added.length >= Math.max(1, steps)) {
         return { ...fresh };
     }
     if (carry && positions[carry.from]) {

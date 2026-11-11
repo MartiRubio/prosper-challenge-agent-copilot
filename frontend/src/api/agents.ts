@@ -3,9 +3,13 @@ import { jsonBody, requestJson } from "./http";
 
 export type AgentVersion = {
     id: string;
+    number: number;
     saved_at: string;
     name: string;
     steps: number;
+    /** Calls made while this was the saved version. */
+    calls: number;
+    current: boolean;
 };
 
 const agentPath = (agentId: string) => `/agents/${encodeURIComponent(agentId)}`;

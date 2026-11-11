@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Sparkles, X } from "lucide-react";
 
-import { rewriteTask } from "../../api/copilot";
+import { rewritePersona, rewriteTask } from "../../api/copilot";
 import { renameNode, setTaskContent } from "../graph-edits/updateNode";
 import type { AgentDocument } from "./agentDocument";
 
@@ -42,15 +42,19 @@ export function NodePanel({ document, nodeName, showPersona, locked, onChange, o
 
     async function rewrite() {
         const message = note.trim();
-        if (!node || locked || rewriting || !message) {
+        if ((!node && !showPersona) || locked || rewriting || !message) {
             return;
         }
         setNoteOpen(false);
         setRewriting(true);
         setRewriteError(null);
         try {
-            const content = await rewriteTask(document, node.name, task, message);
-            onChange(setTaskContent(document, node.name, content));
+            if (showPersona) {
+                onPersona(await rewritePersona(document, message));
+            } else if (node) {
+                const content = await rewriteTask(document, node.name, task, message);
+                onChange(setTaskContent(document, node.name, content));
+            }
             setNote("");
         } catch (caught) {
             setRewriteError(caught instanceof Error ? caught.message : "The step could not be rewritten.");
@@ -59,6 +63,45 @@ export function NodePanel({ document, nodeName, showPersona, locked, onChange, o
         }
     }
 
+    const rewriteControls = (
+        <>
+            {noteOpen ? (
+                <form
+                    className="rewrite-pop"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        void rewrite();
+                    }}
+                >
+                    <input
+                        ref={noteRef}
+                        className="rewrite-note"
+                        aria-label="Tell the LLM what to improve"
+                        placeholder={showPersona ? "How should the persona change?" : "How should this step change?"}
+                        value={note}
+                        disabled={rewriting}
+                        onChange={(event) => setNote(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "Escape") {
+                                setNoteOpen(false);
+                            }
+                        }}
+                    />
+                </form>
+            ) : null}
+            <button
+                type="button"
+                className={rewriting ? "rewrite-button is-busy" : "rewrite-button"}
+                aria-label={showPersona ? "Rewrite the persona with AI" : "Rewrite this step with AI"}
+                aria-expanded={noteOpen}
+                disabled={locked || rewriting}
+                onClick={() => setNoteOpen((open) => !open)}
+            >
+                <Sparkles className="nav-icon" aria-hidden="true" />
+            </button>
+        </>
+    );
+
     if (showPersona) {
         return (
             <section className="node-panel" aria-label="General prompt">
@@ -66,15 +109,17 @@ export function NodePanel({ document, nodeName, showPersona, locked, onChange, o
                     <p className="eyebrow">General prompt</p>
                     <button type="button" className="ghost-icon" aria-label="Close" onClick={onClose}><X aria-hidden="true" /></button>
                 </header>
-                <div className="task-field is-plain">
+                <div className="task-field">
                     <textarea
                         className="prompt-raw"
                         aria-label="General prompt"
                         value={document.persona ?? ""}
-                        disabled={locked}
+                        disabled={locked || rewriting}
                         onChange={(event) => onPersona(event.target.value)}
                     />
+                    {rewriteControls}
                 </div>
+                {rewriteError ? <p className="error">{rewriteError}</p> : null}
             </section>
         );
     }
@@ -115,40 +160,7 @@ export function NodePanel({ document, nodeName, showPersona, locked, onChange, o
                             disabled={locked || rewriting}
                             onChange={(event) => onChange(setTaskContent(document, node.name, event.target.value))}
                         />
-                        {noteOpen ? (
-                            <form
-                                className="rewrite-pop"
-                                onSubmit={(event) => {
-                                    event.preventDefault();
-                                    void rewrite();
-                                }}
-                            >
-                                <input
-                                    ref={noteRef}
-                                    className="rewrite-note"
-                                    aria-label="Tell the LLM what to improve"
-                                    placeholder="tell the LLM what to improve"
-                                    value={note}
-                                    disabled={rewriting}
-                                    onChange={(event) => setNote(event.target.value)}
-                                    onKeyDown={(event) => {
-                                        if (event.key === "Escape") {
-                                            setNoteOpen(false);
-                                        }
-                                    }}
-                                />
-                            </form>
-                        ) : null}
-                        <button
-                            type="button"
-                            className={rewriting ? "rewrite-button is-busy" : "rewrite-button"}
-                            aria-label="Rewrite this step"
-                            aria-expanded={noteOpen}
-                            disabled={locked || rewriting}
-                            onClick={() => setNoteOpen((open) => !open)}
-                        >
-                            <Sparkles className="nav-icon" aria-hidden="true" />
-                        </button>
+                        {rewriteControls}
                     </div>
                     {rewriteError ? <p className="error">{rewriteError}</p> : null}
                     {locked ? <p className="muted">Finish reviewing the copilot&apos;s changes to edit this step.</p> : null}

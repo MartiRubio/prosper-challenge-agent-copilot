@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
 
 import type { EdgeField } from "../editor/agentDocument";
 import { uniqueName } from "../graph-edits/uniqueName";
@@ -65,7 +66,8 @@ export function FunctionEditor({ fn, onChange }: FunctionEditorProps) {
             </label>
             <div className="inspector-row">
                 <p className="eyebrow">Fields</p>
-                <button type="button" className="pill" onClick={() => addField(fn, setFields)}>
+                <button type="button" className="btn" onClick={() => addField(fn, setFields)}>
+                    <Plus aria-hidden="true" />
                     Add field
                 </button>
             </div>
@@ -115,6 +117,7 @@ function FieldRow({
     }
     return (
         <article className="function-field">
+            <div className="field-grid">
             <label>
                 Field
                 <input
@@ -158,17 +161,22 @@ function FieldRow({
                     onBlur={() => setChoiceDraft(choiceText(field))}
                 />
             </label>
-            <label className="check">
-                <input
-                    type="checkbox"
-                    checked={required}
-                    onChange={(event) => onChange(name, field, event.target.checked)}
-                />
-                Required
-            </label>
-            <button type="button" className="pill danger" onClick={onRemove}>
-                Remove
-            </button>
+            </div>
+            <footer className="field-foot">
+                <label className="switch">
+                    <input
+                        type="checkbox"
+                        role="switch"
+                        checked={required}
+                        onChange={(event) => onChange(name, field, event.target.checked)}
+                    />
+                    <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
+                    <span>{required ? "Required: the call can’t take this arrow without it" : "Optional"}</span>
+                </label>
+                <button type="button" className="ghost-icon danger-icon" aria-label={`Remove the field ${name}`} title="Remove field" onClick={onRemove}>
+                    <Trash2 aria-hidden="true" />
+                </button>
+            </footer>
             {nameError ? <p className="error">{nameError}</p> : null}
         </article>
     );

@@ -686,8 +686,8 @@ input.agent-name {
     z-index: 30;
     display: grid;
     gap: 2px;
-    width: 260px;
-    max-height: 360px;
+    width: 300px;
+    max-height: 380px;
     overflow: auto;
     padding: 6px;
     border: 1px solid var(--line);
@@ -979,11 +979,14 @@ input.agent-name {
     height: 10px;
     border: 2px solid var(--surface);
     background: var(--accent);
-    transition: transform var(--fast) var(--ease);
+    transition: box-shadow var(--fast) var(--ease);
 }
 
-.agent-canvas .react-flow__handle:hover {
-    transform: scale(1.35);
+/* Never transform a handle: React Flow positions it with transform. */
+.agent-canvas .react-flow__handle:hover,
+.agent-canvas .react-flow__handle.connectingfrom,
+.agent-canvas .react-flow__handle.connectingto {
+    box-shadow: 0 0 0 4px var(--accent-ring);
 }
 
 .react-flow__node.review-add .step-node {
@@ -1021,6 +1024,48 @@ input.agent-name {
     z-index: 5;
     pointer-events: all;
     cursor: pointer;
+}
+
+.edge-function {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.edge-remove {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--muted);
+    box-shadow: var(--shadow-sm);
+    opacity: 0.55;
+    transition: opacity var(--fast) var(--ease), color var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+
+.edge-remove svg {
+    width: 12px;
+    height: 12px;
+}
+
+.edge-function:hover .edge-remove,
+.edge-remove:focus-visible,
+.react-flow__edge.selected + .edge-function .edge-remove {
+    opacity: 1;
+}
+
+.edge-plain .edge-remove {
+    opacity: 0.55;
+}
+
+.edge-remove:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+    opacity: 1;
 }
 
 .edge-function select {
@@ -2283,10 +2328,83 @@ button.chip:not(.is-fixed):hover {
     box-shadow: var(--shadow-sm);
 }
 
-.function-field .check {
+.field-grid {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) minmax(200px, 2fr) minmax(160px, 1.3fr);
+    gap: 12px;
+}
+
+.field-foot {
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+}
+
+.switch,
+.function-field label.switch {
+    display: inline-flex;
+    grid-template-columns: none;
+    align-items: center;
+    gap: 10px;
+    color: var(--ink-2);
+    font-size: 0.82rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.switch input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.switch-track {
+    position: relative;
+    flex: none;
+    width: 34px;
+    height: 20px;
+    border-radius: var(--radius-pill);
+    background: var(--line-strong);
+    transition: background var(--fast) var(--ease);
+}
+
+.switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--med) var(--ease);
+}
+
+.switch input:checked + .switch-track {
+    background: var(--accent);
+}
+
+.switch input:checked + .switch-track .switch-thumb {
+    transform: translateX(14px);
+}
+
+.switch input:focus-visible + .switch-track {
+    box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.danger-icon:hover:not(:disabled) {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.agent-pill[aria-current="true"] {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow-sm), inset 2px 0 0 var(--accent);
 }
 
 /* ==========================================================================
@@ -2437,4 +2555,319 @@ button.chip:not(.is-fixed):hover {
     color: var(--warn);
     font-size: 0.8rem;
     animation: rise var(--med) var(--ease);
+}
+
+/* A blank agent's start screen */
+.start-agent {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    border-radius: var(--radius-lg);
+    background: rgba(250, 249, 246, 0.86);
+    backdrop-filter: blur(3px);
+    animation: fade var(--med) var(--ease);
+}
+
+.start-card {
+    display: grid;
+    gap: 14px;
+    width: min(620px, 100%);
+    padding: 32px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+    animation: rise var(--med) var(--ease);
+}
+
+.start-mark {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--ai));
+    color: #fff;
+}
+
+.start-mark svg {
+    width: 20px;
+    height: 20px;
+}
+
+.start-card h2 {
+    font-size: 1.4rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+}
+
+.start-box {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+
+.start-box:focus-within {
+    border-color: var(--ai);
+    box-shadow: 0 0 0 3px var(--ai-ring);
+}
+
+.start-box textarea {
+    border: 0;
+    background: transparent;
+    font-size: 0.95rem;
+    resize: none;
+}
+
+.start-box textarea:focus {
+    outline: none;
+}
+
+.start-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.start-examples {
+    display: grid;
+    gap: 6px;
+}
+
+.start-manual {
+    justify-self: center;
+    margin-top: 4px;
+    color: var(--muted);
+}
+
+/* Review carousel: one proposed change at a time, in the order they depend on each other */
+.carousel {
+    display: grid;
+    gap: 8px;
+}
+
+.carousel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.carousel-nav {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    color: var(--ink-2);
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.carousel-bulk {
+    display: flex;
+    gap: 12px;
+    font-size: 0.8rem;
+}
+
+.muted-link {
+    color: var(--muted);
+}
+
+.link:disabled {
+    opacity: 0.45;
+    text-decoration: none;
+}
+
+.carousel-dots {
+    display: flex;
+    gap: 5px;
+    padding: 0 4px;
+}
+
+.carousel-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--line-strong);
+    transition: width var(--med) var(--ease), background var(--med) var(--ease);
+}
+
+.carousel-dots span.is-on {
+    width: 18px;
+    border-radius: var(--radius-pill);
+    background: var(--ai);
+}
+
+@keyframes slide-from-right {
+    from { opacity: 0; transform: translateX(28px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes slide-from-left {
+    from { opacity: 0; transform: translateX(-28px); }
+    to { opacity: 1; transform: none; }
+}
+
+.review-card.slide-next {
+    animation: slide-from-right var(--med) var(--ease) both;
+}
+
+.review-card.slide-previous {
+    animation: slide-from-left var(--med) var(--ease) both;
+}
+
+.decided {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.decided li {
+    display: grid;
+    grid-template-columns: 16px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    font-size: 0.8rem;
+    animation: rise var(--med) var(--ease) both;
+}
+
+.decided svg {
+    width: 14px;
+    height: 14px;
+}
+
+.decided-kept svg {
+    color: var(--ok);
+}
+
+.decided-discarded {
+    opacity: 0.6;
+}
+
+.decided-discarded span:nth-child(2) {
+    text-decoration: line-through;
+}
+
+/* Replay: the simulated calls, readable in the chat */
+.replay-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    justify-self: start;
+    padding: 2px 0;
+    border: 0;
+    background: none;
+    color: var(--ai-strong);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.replay-tabs {
+    max-width: 220px;
+}
+
+.replay-tabs button svg {
+    width: 14px;
+    height: 14px;
+}
+
+.replay-reason.is-pass strong {
+    color: var(--ok);
+}
+
+.replay-reason.is-fail strong {
+    color: var(--danger);
+}
+
+.replay-path {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.replay-path > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.replay-path svg {
+    width: 12px;
+    height: 12px;
+    color: var(--muted);
+}
+
+.replay-ended {
+    justify-self: center;
+    color: var(--muted);
+    font-size: 0.74rem;
+}
+
+.start-strip-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.start-strip-head p {
+    margin: 0;
+}
+
+.wand-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.version-number {
+    display: grid;
+    place-items: center;
+    min-width: 30px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-sunken);
+    color: var(--ink-2);
+    font-size: 0.74rem;
+    font-weight: 650;
+}
+
+.version-main {
+    display: grid;
+    flex: 1;
+    gap: 2px;
+}
+
+.version-main .muted {
+    font-size: 0.74rem;
+}
+
+.menu-item {
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+}
+
+.live-tag {
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: var(--radius-pill);
+    background: var(--ok-soft);
+    color: var(--ok);
+    font-size: 0.68rem;
+    font-weight: 650;
 }
