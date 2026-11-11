@@ -1,7 +1,7 @@
 """Call transcripts and their checks, in each agent's folder.
 
 sample_calls.json ships with the repo and stands in for production. Test calls
-recorded by the voice runner go to calls/, one file per call, and the copilot's
+recorded by the voice runner, and simulated calls, go to calls/, one file per call, and the copilot's
 check of each call to checks.json. Git ignores both, so a demo never dirties
 the tree.
 """
@@ -13,14 +13,14 @@ from infrastructure.agent_files import agent_dir
 
 
 def read_calls(agent_id: str) -> list[dict]:
-    """Sample calls stand in for production; anything the voice runner recorded is a test call."""
+    """Sample calls stand in for production; a recorded call is a test call unless it says it was simulated."""
     folder = agent_dir(agent_id)
     samples = [{"source": "production", **call} for call in _read_list(folder / "sample_calls.json")]
     recorded = []
     for path in sorted((folder / "calls").glob("*.json")):
         call = _read_json(path)
         if isinstance(call, dict):
-            recorded.append({**call, "source": "test"})
+            recorded.append({"source": "test", **call})
     return [call for call in samples + recorded if call.get("agent_id") == agent_id]
 
 

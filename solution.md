@@ -33,6 +33,8 @@ This targets the detection burden directly. Nobody has to read every transcript 
 
 After you keep changes that came from flagged calls, Replay calls those calls again. It does not replay the caller's old lines, which go stale after the first turn that goes differently. It pulls the caller's goal and facts out of the call ("wants to cancel Thursday, does not want a new time"). A model plays that caller live, in text, against the graph. The simulator runs the graph the way Pipecat Flows does: the persona plus the current step's task, with the step's arrows as tools. A judge decides whether the flagged problem happened again. It judges what the agent did, not what it said it did: claiming a cancellation from a step that cannot cancel is a fail.
 
+**Simulated calls** use the same simulator before there is any production traffic. In the Call log, Simulate calls → pick 1, 3, 5 or 10 → done. Each call takes a call type from `data/caller_profiles.json` (a routine booking, a cancellation, someone who changes their mind, chest pain, an insurance question, a parent booking for a child, a Spanish speaker…) and fills its blanks with random names, dates and visits, so there is no model call to invent callers. The calls land in the log marked Simulated, the check reads each one, and a flagged one goes to Improve like any other. They are left out of each version's call count.
+
 The same brief calls the graph before the change and after it, so you see **Before ✗ → After ✓** per call, with transcripts and the path of steps taken. A replay that still fails goes back to the copilot as a new flagged call in one click. While building this, replay caught a real defect: a cancel arrow that never fired, because a generic arrow on the same step matched first. The prompt now asks the copilot to narrow overlapping arrows.
 
 ### Why the output can be trusted
@@ -69,13 +71,14 @@ The voice pipeline is unchanged: browser mic → ElevenLabs STT → OpenAI → E
 
 | | What | Why |
 | --- | --- | --- |
-| **Built** | Guideline intake with coverage, call checks on arrival, evidence on every change, replay before/after, snapshots | These remove the work the brief describes: encoding guidelines, finding bad calls, finding the failing step, and trusting the fix. |
+| **Built** | Guideline intake with coverage, call checks on arrival, evidence on every change, simulated calls, replay before/after, snapshots | These remove the work the brief describes: encoding guidelines, finding bad calls, finding the failing step, and trusting the fix. |
 | **Mocked** | Production calls (`backend/data/agents/<id>/sample_calls.json`) | No real call data was provided. Three calls cover a routing bug, a safety miss, and a good call. Test calls are recorded and checked the same way. |
 | **Left out** | Telephony, accounts, multi-user editing, call ingestion from a provider, dashboards | They don't change whether the copilot works. A real ingestion job would write to the same call files. |
 | **Left out on purpose** | A copilot that regenerates the whole agent | Whole-agent rewrites are hard to review and break working paths. Small cited ops are slower to write but fast to trust. |
 
 ## Known limits
 
+- Replay and simulated calls are text, not voice, and the same model plays the caller, the agent and the checker, so it can share blind spots. The call check judges from the caller’s side and names emergencies explicitly for that reason.
 - Replay is text, not voice. It tests routing and wording, not speech recognition errors or barge-in. The live test call remains the final check.
 - One model, gpt-4o, for all text generation (`domain/text_model.py`), with temperature 0 for checks and judging. Replay runs the agent side on the agent’s own model, as a live call does. Proposals still vary between runs; validation and retries bound that variance, they don't remove it.
 - Test calls read the function catalog on disk. A function the copilot added is heard with its fields only after Save.

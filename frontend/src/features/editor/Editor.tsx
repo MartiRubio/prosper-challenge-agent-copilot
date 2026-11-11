@@ -362,6 +362,16 @@ export function Editor() {
                                             onOpenCall={setOpenCallId}
                                             onClose={closeCallLog}
                                             onFocusStep={(step) => copilot.addFocus([{ kind: "node", label: step }])}
+                                            onSimulate={(count) => {
+                                                if (!document) {
+                                                    return;
+                                                }
+                                                void callLog.simulate(document, catalog.functions, count).then((first) => {
+                                                    if (first) {
+                                                        setOpenCallId(first);
+                                                    }
+                                                });
+                                            }}
                                             onImprove={() => {
                                                 setCallLogOpen(false);
                                                 void copilot.send(IMPROVE_REQUEST, callLog.flagged.filter((call) => call.feedback.trim()));

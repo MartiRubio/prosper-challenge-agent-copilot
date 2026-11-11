@@ -9,6 +9,7 @@ from application.copilot.generate_test_data import generate_test_data
 from application.copilot.propose_changes import propose_changes
 from application.copilot.replay_calls import replay_calls
 from application.copilot.rewrite_task import rewrite_task
+from application.copilot.simulate_calls import simulate_calls
 from infrastructure.agent_files import InvalidAgentId
 from infrastructure.attachment_text import extract_attachment
 
@@ -61,6 +62,11 @@ def post_check(agent_id: str, call_id: str) -> dict:
         raise HTTPException(status_code=404, detail=f"Unknown call '{call_id}'.") from None
     except InvalidAgentId:
         raise HTTPException(status_code=400, detail=f"Invalid agent id '{agent_id}'.") from None
+
+
+@router.post("/simulate")
+def post_simulate(body: dict) -> list[dict]:
+    return _model_call(simulate_calls, body)
 
 
 @router.post("/replay")

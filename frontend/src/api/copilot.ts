@@ -25,9 +25,11 @@ export type LoggedCall = {
     agent_id: string;
     title: string;
     started_at: string;
-    source: "production" | "test" | "sample";
+    source: "production" | "test" | "simulated" | "sample";
     turns: CallTurn[];
     check: CallCheck | null;
+    /** Set on a simulated call: the caller it played. */
+    brief?: { goal: string; facts: Record<string, string>; constraints: string[]; style: string };
     /** Set when a test call opened on a later step instead of Start. */
     start_node?: string;
     test_data?: Record<string, string>;
@@ -152,6 +154,20 @@ export function applyOpsOnServer(
 
 export function listCalls(agentId: string): Promise<LoggedCall[]> {
     return requestJson(`/copilot/calls?agent_id=${encodeURIComponent(agentId)}`, "Could not load the call log.");
+}
+
+export function simulateCalls(input: {
+    agentId: string;
+    agent: AgentDocument;
+    catalog: FunctionTemplate[];
+    count: number;
+}): Promise<LoggedCall[]> {
+    return requestJson("/copilot/simulate", "The calls could not be simulated.", jsonBody("POST", {
+        agent_id: input.agentId,
+        agent: input.agent,
+        catalog: input.catalog,
+        count: input.count,
+    }));
 }
 
 export function checkCall(agentId: string, callId: string): Promise<CallCheck> {

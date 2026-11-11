@@ -22,6 +22,8 @@ def list_versions(agent_id: str) -> list[dict]:
     saved = [_iso(version_id) for version_id, _ in snapshots]
     counts = [0] * len(snapshots)
     for call in read_calls(agent_id):
+        if call.get("source") == "simulated":
+            continue
         started = call.get("started_at") or ""
         # A call belongs to the last version saved before it; older calls to the first.
         index = 0

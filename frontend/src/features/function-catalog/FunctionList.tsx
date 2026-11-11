@@ -28,7 +28,7 @@ export function FunctionList({ functions, selected, onSelect, onCreate, onDelete
                         <li key={fn.name} className="nav-row">
                             <button
                                 type="button"
-                                className="pill agent-pill"
+                                className="pill agent-pill is-code"
                                 aria-current={fn.name === selected ? "true" : undefined}
                                 onClick={() => onSelect(fn.name)}
                             >

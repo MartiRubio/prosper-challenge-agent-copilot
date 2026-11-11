@@ -27,6 +27,7 @@ About 10 minutes. The order follows what Prosper said matters most: the copilot 
 2. Click the paperclip in the copilot and attach `riverside-guidelines.pdf`. Type "Build this clinic's scheduling agent from the guidelines" and send.
 3. One card per path, each quoting the guideline it implements. Open **Guidelines covered**: every rule, and the change that covers it.
 4. **Keep all**, **Auto-arrange**, **Save**.
+5. Open the **Call log**, **Simulate calls** → **5**. Five different callers run against the new agent in about 20 seconds and get checked as they land. Flag what the check found and **Improve**.
 
 ## 3. Precision edits (1 min)
 

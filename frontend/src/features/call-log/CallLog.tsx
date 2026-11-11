@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CircleCheck, Flag, LoaderCircle, RotateCcw, Sparkles, X } from "lucide-react";
+import { Bot, CircleCheck, Flag, LoaderCircle, RotateCcw, Sparkles, X } from "lucide-react";
 
 import type { LoggedCall } from "../../api/copilot";
 import type { CallLogState } from "./useCallLog";
@@ -11,10 +11,14 @@ type CallLogProps = {
     onOpenCall: (callId: string) => void;
     onImprove: () => void;
     onFocusStep: (step: string) => void;
+    onSimulate: (count: number) => void;
     onClose: () => void;
 };
 
-export function CallLog({ log, sending, openCallId, onOpenCall, onImprove, onFocusStep, onClose }: CallLogProps) {
+const SIMULATE_COUNTS = [1, 3, 5, 10];
+
+export function CallLog({ log, sending, openCallId, onOpenCall, onImprove, onFocusStep, onSimulate, onClose }: CallLogProps) {
+    const [picking, setPicking] = useState(false);
     const open = log.calls.find((call) => call.id === openCallId) ?? null;
     const ready = log.flagged.filter((call) => call.feedback.trim());
     const missingFeedback = log.flagged.length - ready.length;
@@ -42,7 +46,9 @@ export function CallLog({ log, sending, openCallId, onOpenCall, onImprove, onFoc
                     <div>
                         <h2>Call log</h2>
                         <p className="muted">
-                            {log.checking.length
+                            {log.simulating
+                                ? `Simulating ${log.simulating} ${log.simulating === 1 ? "call" : "calls"}…`
+                                : log.checking.length
                                 ? `Checking ${log.checking.length} ${log.checking.length === 1 ? "call" : "calls"}…`
                                 : `${log.calls.length} calls · ${log.issues} with issues`}
                         </p>
@@ -51,10 +57,40 @@ export function CallLog({ log, sending, openCallId, onOpenCall, onImprove, onFoc
                         <X aria-hidden="true" />
                     </button>
                 </header>
-                {log.error ? <p className="error">{log.error}</p> : null}
+                <div className="simulate-bar">
+                    {log.simulating ? (
+                        <span className="simulate-running"><LoaderCircle className="spin" aria-hidden="true" />Callers are on the line…</span>
+                    ) : picking ? (
+                        <div className="simulate-pick" role="group" aria-label="How many calls to simulate">
+                            <span>How many?</span>
+                            {SIMULATE_COUNTS.map((count) => (
+                                <button
+                                    key={count}
+                                    type="button"
+                                    className="count-chip"
+                                    onClick={() => {
+                                        setPicking(false);
+                                        onSimulate(count);
+                                    }}
+                                >
+                                    {count}
+                                </button>
+                            ))}
+                            <button type="button" className="ghost-icon" aria-label="Cancel" onClick={() => setPicking(false)}>
+                                <X aria-hidden="true" />
+                            </button>
+                        </div>
+                    ) : (
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPicking(true)}>
+                            <Bot aria-hidden="true" />
+                            Simulate calls
+                        </button>
+                    )}
+                </div>
+                {log.error ? <p className="error pad">{log.error}</p> : null}
                 {log.loading && log.calls.length === 0 ? <p className="muted pad">Loading calls…</p> : null}
                 {!log.loading && !log.error && log.calls.length === 0 ? (
-                    <p className="muted pad">No calls yet. Place a test call and it shows up here, checked.</p>
+                    <p className="muted pad">No calls yet. Place a test call or simulate a few, and they show up here, checked.</p>
                 ) : null}
                 <ul>
                     {log.calls.map((call) => (
@@ -89,12 +125,17 @@ export function CallLog({ log, sending, openCallId, onOpenCall, onImprove, onFoc
                         <header className="transcript-head">
                             <h3>{open.title}</h3>
                             <p className="muted">
-                                {open.source === "test" ? "Test call" : "Production call"} · {formatDate(open.started_at)}
+                                {SOURCE_LABEL[open.source] ?? "Call"} · {formatDate(open.started_at)}
                                 {open.start_node ? <> · started at <span className="step-chip">{open.start_node}</span></> : null}
                             </p>
                             {open.start_node && open.test_data && Object.keys(open.test_data).length ? (
                                 <p className="muted test-data-line">
                                     Test data: {Object.entries(open.test_data).map(([key, value]) => `${key} ${value}`).join(" · ")}
+                                </p>
+                            ) : null}
+                            {open.brief ? (
+                                <p className="muted test-data-line">
+                                    Caller: {open.brief.facts.name} · {open.brief.goal}
                                 </p>
                             ) : null}
                         </header>
@@ -144,6 +185,7 @@ function CallRow({
                     <strong>{call.title}</strong>
                     <span className="call-meta">
                         <CheckBadge call={call} checking={checking} />
+                        <span>{call.source === "simulated" ? "Simulated" : call.source === "test" ? "Test" : "Production"}</span>
                         <span>{formatDate(call.started_at)}</span>
                     </span>
                 </button>
@@ -243,6 +285,13 @@ function CheckSummary({
         </div>
     );
 }
+
+const SOURCE_LABEL: Record<string, string> = {
+    production: "Production call",
+    sample: "Production call",
+    test: "Test call",
+    simulated: "Simulated call",
+};
 
 function quoteMatches(text: string, quote: string): boolean {
     const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();

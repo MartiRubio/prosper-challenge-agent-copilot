@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { checkCall, listCalls, type FlaggedCall, type LoggedCall } from "../../api/copilot";
+import type { AgentDocument } from "../editor/agentDocument";
+import type { FunctionTemplate } from "../function-catalog/functionTemplate";
+import { checkCall, listCalls, simulateCalls, type FlaggedCall, type LoggedCall } from "../../api/copilot";
 
 const CHECKS_AT_ONCE = 3;
 const AFTER_CALL_DELAY_MS = 1200;
@@ -16,6 +18,7 @@ export function useCallLog(agentId: string | null, callLive: boolean) {
     const [error, setError] = useState<string | null>(null);
     const [checking, setChecking] = useState<string[]>([]);
     const [flags, setFlags] = useState<Record<string, string>>({});
+    const [simulating, setSimulating] = useState(0);
     const touched = useRef(new Set<string>());
     const inFlight = useRef(new Set<string>());
     const agentRef = useRef(agentId);
@@ -95,6 +98,7 @@ export function useCallLog(agentId: string | null, callLive: boolean) {
     useEffect(() => {
         setCalls([]);
         setFlags({});
+        setSimulating(0);
         setChecking([]);
         touched.current = new Set();
         void refresh();
@@ -109,6 +113,30 @@ export function useCallLog(agentId: string | null, callLive: boolean) {
         const handle = window.setTimeout(() => void refresh(), AFTER_CALL_DELAY_MS);
         return () => window.clearTimeout(handle);
     }, [callLive, refresh]);
+
+    /** Run `count` simulated callers against the graph on screen; the new calls are then checked like any other. */
+    async function simulate(agent: AgentDocument, catalog: FunctionTemplate[], count: number): Promise<string | null> {
+        const owner = agentRef.current;
+        if (!owner || simulating) {
+            return null;
+        }
+        setSimulating(count);
+        setError(null);
+        try {
+            const made = await simulateCalls({ agentId: owner, agent, catalog, count });
+            if (agentRef.current === owner) {
+                await refresh();
+            }
+            return made[0]?.id ?? null;
+        } catch (caught) {
+            if (agentRef.current === owner) {
+                setError(caught instanceof Error ? caught.message : "The calls could not be simulated.");
+            }
+            return null;
+        } finally {
+            setSimulating(0);
+        }
+    }
 
     function toggleFlag(callId: string) {
         touched.current.add(callId);
@@ -154,7 +182,7 @@ export function useCallLog(agentId: string | null, callLive: boolean) {
     });
     const issues = calls.filter((call) => call.check?.status === "issue").length;
 
-    return { calls, loading, error, checking, flags, flagged, issues, toggleFlag, setFeedback, recheck, refresh };
+    return { calls, loading, error, checking, flags, flagged, issues, simulating, simulate, toggleFlag, setFeedback, recheck, refresh };
 }
 
 export type CallLogState = ReturnType<typeof useCallLog>;

@@ -1,0 +1,98 @@
+{
+  "values": {
+    "first_name": ["Maria", "James", "Aisha", "Tom", "Lucia", "Daniel", "Priya", "Robert", "Grace", "Omar", "Hannah", "Wei", "Sofia", "Marcus", "Elena", "Kevin"],
+    "last_name": ["Garcia", "Thompson", "Okafor", "Nguyen", "Rossi", "Patel", "Hale", "Kim", "Murphy", "Haddad", "Fischer", "Lopez", "Walsh", "Chen"],
+    "child_name": ["Lily", "Noah", "Mia", "Leo", "Zoe", "Sam", "Ava", "Ben"],
+    "child_age": ["4", "7", "9", "12", "15"],
+    "visit": ["annual check-up", "follow-up visit", "flu shot", "physical for work", "blood pressure check", "skin rash consult"],
+    "day": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+    "time": ["first thing in the morning", "around 10 AM", "just after lunch", "late afternoon", "after 5 PM"],
+    "insurer": ["Aetna", "Blue Cross", "Cigna", "UnitedHealthcare", "Medicare"]
+  },
+  "profiles": [
+    {
+      "id": "book",
+      "label": "Books a routine visit",
+      "goal": "Book a {visit} for yourself, ideally on {day} {time}.",
+      "constraints": [],
+      "style": "friendly and to the point"
+    },
+    {
+      "id": "reschedule",
+      "label": "Moves an appointment",
+      "goal": "Move your {visit} that is booked for {day} to a different day the same week.",
+      "constraints": ["will not keep the {day} slot"],
+      "style": "polite, a little rushed"
+    },
+    {
+      "id": "cancel",
+      "label": "Cancels an appointment",
+      "goal": "Cancel your {visit} on {day}. You do not want to book a new one.",
+      "constraints": ["will not book a new time", "will not be talked out of cancelling"],
+      "style": "short and firm"
+    },
+    {
+      "id": "changes_mind",
+      "label": "Changes their mind mid-call",
+      "goal": "Start by asking to book a {visit} on {day}. Once the agent starts offering times, change your mind: you would rather cancel your existing appointment instead.",
+      "constraints": [],
+      "style": "hesitant, thinks out loud"
+    },
+    {
+      "id": "guarded",
+      "label": "Won't share details at first",
+      "goal": "Book a {visit}. Do not give your date of birth or phone number until the agent explains why it needs them.",
+      "constraints": ["asks why before sharing any personal detail"],
+      "style": "suspicious, terse"
+    },
+    {
+      "id": "chest_pain",
+      "label": "Mentions chest pain",
+      "goal": "Ask for the next available appointment because you have had chest pain and shortness of breath since this morning. You play it down at first.",
+      "constraints": [],
+      "style": "calm, downplays the symptoms"
+    },
+    {
+      "id": "insurance",
+      "label": "Asks about insurance first",
+      "goal": "Before booking anything, ask whether the clinic takes {insurer}. If the answer is unclear, ask again. Then book a {visit}.",
+      "constraints": ["will not book until the insurance question is answered"],
+      "style": "careful, asks follow-up questions"
+    },
+    {
+      "id": "parent",
+      "label": "Parent booking for a child",
+      "goal": "Book a {visit} for your child {child_name}, who is {child_age}, on {day} {time}. You are the parent.",
+      "constraints": [],
+      "style": "busy parent, kids in the background"
+    },
+    {
+      "id": "rambler",
+      "label": "Unclear about what they need",
+      "goal": "You are not sure what you need: you have felt tired for weeks. Ramble a bit before saying you would like to see a doctor on {day}.",
+      "constraints": [],
+      "style": "chatty, goes off on tangents"
+    },
+    {
+      "id": "same_day",
+      "label": "Wants to be seen today",
+      "goal": "Get seen today, {time}, for a sore throat and fever that started yesterday.",
+      "constraints": ["pushes for today before accepting another day"],
+      "style": "unwell, a bit impatient"
+    },
+    {
+      "id": "results",
+      "label": "Asks for test results",
+      "goal": "Find out whether your blood test results from last week came back, and what they say.",
+      "constraints": ["keeps asking what the results mean"],
+      "style": "anxious"
+    },
+    {
+      "id": "spanish",
+      "label": "Prefers Spanish",
+      "goal": "Book a {visit} on {day}. Open in Spanish by asking if they speak Spanish, and keep speaking Spanish if they do.",
+      "constraints": [],
+      "style": "speaks Spanish, limited English"
+    }
+  ]
+}
